@@ -1,0 +1,23 @@
+# Ambientes virtuais (nunca envie a pasta venv)
+venv/
+env/
+.venv/
+
+# Arquivos de dados (os leads que você extraiu)
+*.csv
+*.xlsx
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Variáveis de ambiente (caso use um arquivo .env no futuro)
+.env
+
+# Pasta de imagens geradas
+prints_personalizados/
+
+lista_para_whatsapp.txt
+
+# Arquivos temporários de editores (LibreOffice/Excel)
+.~lock.*
