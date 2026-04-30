@@ -15,7 +15,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 
-SITE_PREVIEW_BASE = "http://127.0.0.1:8000/index.html"
+SITE_PREVIEW_BASE = "http://127.0.0.1:8000/preview_print.html"
+SITE_LANDING_BASE = "http://127.0.0.1:8000/index.html"
+
 ARQUIVO_BASE = "leads_tratados_para_envio.csv"
 CRM_FILE = "meu_crm_estetica.csv"
 PASTA_PRINTS = "prints_personalizados"
@@ -44,7 +46,7 @@ def configurar_navegador_mobile():
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
-def gerar_link_preview(base_url: str, empresa: str, bairro: str, segmento: str) -> str:
+def gerar_link(base_url: str, empresa: str, bairro: str, segmento: str) -> str:
     params = {
         "empresa": empresa,
         "local": bairro,
@@ -106,10 +108,10 @@ def carregar_ou_criar_crm():
     )
 
 
-def atualizar_crm_pos_geracao(df_crm, empresa, link_preview, caminho_print, mensagem):
+def atualizar_crm_pos_geracao(df_crm, empresa, link_landing, caminho_print, mensagem):
     idx = df_crm[df_crm["Empresa"].astype(str).str.lower() == str(empresa).lower()].index
     if not idx.empty:
-        df_crm.loc[idx, "Link"] = link_preview
+        df_crm.loc[idx, "Link"] = link_landing
         df_crm.loc[idx, "Caminho_Print"] = caminho_print
         df_crm.loc[idx, "Mensagem"] = mensagem
     return df_crm
@@ -149,8 +151,15 @@ def processar_esteira(limite_por_execucao=15):
         segmento = str(row.get("Segmento", "clínicas de estética")).strip()
         data_captura = str(row.get("Data_Captura", "")).strip()
 
-        link_preview = gerar_link_preview(
+        link_preview = gerar_link(
             base_url=SITE_PREVIEW_BASE,
+            empresa=nome,
+            bairro=bairro,
+            segmento=segmento
+        )
+
+        link_landing = gerar_link(
+            base_url=SITE_LANDING_BASE,
             empresa=nome,
             bairro=bairro,
             segmento=segmento
@@ -169,7 +178,8 @@ def processar_esteira(limite_por_execucao=15):
             "Telefone": telefone,
             "Bairro": bairro,
             "Prioridade": row["Prioridade"],
-            "Link": link_preview,
+            "Link_Preview": link_preview,
+            "Link_Landing": link_landing,
             "Caminho_Print": caminho_img,
             "Mensagem": mensagem,
             "Status_Envio": "REVISAR_ANTES_DE_ENVIAR",
@@ -180,7 +190,7 @@ def processar_esteira(limite_por_execucao=15):
         df_crm = atualizar_crm_pos_geracao(
             df_crm=df_crm,
             empresa=nome,
-            link_preview=link_preview,
+            link_landing=link_landing,
             caminho_print=caminho_img,
             mensagem=mensagem
         )

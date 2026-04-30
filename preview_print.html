@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prévia personalizada</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              primary: "#082f49",
+              accent: "#ea580c",
+              soft: "#eff6ff",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-sans">
+    <main class="min-h-screen bg-gradient-to-b from-slate-100 to-white">
+      <section class="px-5 pt-6 pb-8">
+        <div class="max-w-md mx-auto">
+          <div
+            class="bg-primary text-white rounded-[28px] p-5 shadow-2xl overflow-hidden"
+          >
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-extrabold text-lg"
+              >
+                S
+              </div>
+              <div>
+                <div class="font-extrabold text-lg leading-tight">
+                  SulAmérica Odonto
+                </div>
+                <div
+                  class="text-[11px] uppercase tracking-[0.18em] text-white/70"
+                >
+                  visualização personalizada
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white/80 mb-4"
+            >
+              <span id="texto-local">Proposta para Belo Horizonte</span>
+            </div>
+
+            <p
+              class="text-xs text-white/70 mb-2 uppercase tracking-wider font-bold"
+            >
+              Clínica destacada
+            </p>
+
+            <h1
+              id="empresa-nome"
+              class="text-3xl leading-tight font-extrabold text-accent mb-4 break-words"
+            >
+              Sua clínica
+            </h1>
+
+            <p class="text-sm text-white/90 leading-relaxed mb-5">
+              Montei esta visualização para mostrar como um benefício
+              odontológico pode ser apresentado de forma profissional para a
+              equipe da
+              <span id="empresa-inline" class="font-bold text-white"
+                >sua clínica</span
+              >.
+            </p>
+
+            <div class="bg-white text-slate-900 rounded-3xl p-4 shadow-xl mb-4">
+              <div
+                class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2"
+              >
+                resumo da proposta
+              </div>
+
+              <h2
+                class="text-lg font-extrabold text-primary leading-tight mb-3"
+              >
+                Benefício odontológico com apresentação personalizada
+              </h2>
+
+              <div class="space-y-3 mb-4">
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    segmento
+                  </div>
+                  <div
+                    id="texto-segmento"
+                    class="text-sm font-semibold text-slate-800"
+                  >
+                    clínicas de estética
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    cidade
+                  </div>
+                  <div
+                    id="texto-cidade"
+                    class="text-sm font-semibold text-slate-800"
+                  >
+                    Belo Horizonte
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    referência
+                  </div>
+                  <div class="text-sm font-semibold text-slate-800">
+                    A partir de R$ 26,90 por vida
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="block w-full text-center bg-accent text-white font-bold py-4 rounded-2xl shadow-lg"
+              >
+                Ver contratação online
+              </a>
+            </div>
+
+            <p class="text-[11px] text-white/60 leading-relaxed">
+              Prévia criada para apresentação inicial da proposta.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      function obterParametro(nome) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(nome);
+      }
+
+      const empresa = decodeURIComponent(
+        obterParametro("empresa") || "Sua clínica",
+      );
+      const local = decodeURIComponent(
+        obterParametro("local") || "Belo Horizonte",
+      );
+      const segmento = decodeURIComponent(
+        obterParametro("segmento") || "clínicas de estética",
+      );
+
+      document.getElementById("empresa-nome").textContent = empresa;
+      document.getElementById("empresa-inline").textContent = empresa;
+      document.getElementById("texto-local").textContent =
+        `Proposta para ${local}`;
+      document.getElementById("texto-cidade").textContent = local;
+      document.getElementById("texto-segmento").textContent = segmento;
+    </script>
+  </body>
+</html>

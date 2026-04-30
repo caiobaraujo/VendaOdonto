@@ -1,0 +1,1674 @@
+
+--- ARQUIVO: ./leads_tratados_para_envio.csv ---
+
+﻿Empresa_Original,Empresa_Contato,Telefone,Bairro,Site,Segmento,Link,Prioridade,Pronto_Para_Enviar
+Estética,Estética,31995654250,Belo Horizonte,,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Est%C3%A9tica&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,4,REVISAR
+"Botocenter Savassi: Clinica de Estética, Belo Horizonte MG","Botocenter Savassi: Clinica de Estética,",31990885888,Savassi,https://www.botocenter.com.br/,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Botocenter+Savassi%3A+Clinica+de+Est%C3%A9tica%2C&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,9,SIM
+Clinica Lev - Savassi,Clinica Lev,3132614533,Savassi,http://www.clinicalev.com.br/,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Clinica+Lev&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,7,SIM
+Clínica de Estética Gisa Andrade,Clínica de Estética Gisa Andrade,31972152505,Belo Horizonte,https://www.instagram.com/clinicagisaandrade?igsh=MXVqcWx5eGI1ZWl6MA%3D%3D&utm_source=qr,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Gisa+Andrade&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,7,SIM
+Naked Laser BH - Clínica de Estética Avançada | Remoção de Tatuagem | Depilação à laser | Rejuvenescimento Facial,Naked Laser BH,3132274488,Belo Horizonte,https://nakedbh.com.br/,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Naked+Laser+BH&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,7,SIM
+Vibe Clinic - Clínica de Estética - Savassi,Vibe Clinic,31997645936,Savassi,https://bio.site/vibeclinic,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Vibe+Clinic&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,7,SIM
+Dra Marina Mageste | Estética Avançada | Especialista em BOTOX E QUALIDADE DE PELE | Mentoria VIP | Belo Horizonte Savassi,Dra Marina Mageste,31981005115,Savassi,https://www.instagram.com/marinamageste/,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Dra+Marina+Mageste&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,5,SIM
+Éclat Savassi,Éclat Savassi,31971971715,Savassi,,clínicas de estética,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=%C3%89clat+Savassi&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,5,SIM
+
+--- ARQUIVO: ./link_generator.py ---
+
+import os
+import re
+import pandas as pd
+import urllib.parse
+from datetime import datetime
+
+ARQUIVO_LEADS = "leads_santo_agostinho_belo_horizonte.csv"
+SITE_PREVIEW_BASE = "http://127.0.0.1:8000/index.html"
+
+
+def limpar_nome_empresa(nome_bruto: str) -> str:
+    nome = str(nome_bruto).strip()
+
+    # separações mais comuns
+    nome = re.split(r"\s+\|\s+|\s+-\s+", nome)[0].strip()
+
+    # remove caudas muito genéricas
+    pads_remover = [
+        r"\bBelo Horizonte\b.*$",
+        r"\bBH\b.*$",
+        r"\bMG\b.*$",
+        r"\bSanto Agostinho\b.*$",
+        r"\bSavassi\b.*$",
+        r"\bLourdes\b.*$",
+        r"\bBotox\b.*$",
+        r"\bUltraformer\b.*$",
+        r"\bEmagrecimento\b.*$",
+        r"\bDepilação a Laser\b.*$",
+        r"\bHarmonização Facial\b.*$",
+        r"\bTricologia\b.*$",
+    ]
+
+    for padrao in pads_remover:
+        nome = re.sub(padrao, "", nome, flags=re.IGNORECASE).strip(" -_|,:")
+
+    nome = re.sub(r"\s+", " ", nome).strip(" -_|,:")
+
+    # fallback simples
+    if len(nome) < 4:
+        nome = str(nome_bruto).strip()
+
+    # limita tamanho visual
+    palavras = nome.split()
+    if len(palavras) > 5:
+        nome = " ".join(palavras[:5])
+
+    # remove nome genérico demais
+    if nome.lower() in {"estética", "clinica", "clínica", "spa"}:
+        nome = str(nome_bruto).split("-")[0].strip()
+
+    return nome.strip(" -_|,:")
+
+
+def detectar_bairro(nome: str, site: str = "") -> str:
+    texto = f"{nome} {site}".lower()
+
+    if "santo agostinho" in texto:
+        return "Santo Agostinho"
+    if "savassi" in texto:
+        return "Savassi"
+    if "lourdes" in texto:
+        return "Lourdes"
+    if "belvedere" in texto:
+        return "Belvedere"
+    return "Belo Horizonte"
+
+
+def normalizar_telefone(valor: str) -> str:
+    digits = re.sub(r"\D", "", str(valor))
+    if digits.startswith("55") and len(digits) > 11:
+        digits = digits[2:]
+    if digits.startswith("0") and len(digits) >= 11:
+        digits = digits[1:]
+    return digits
+
+
+def score_lead(nome: str, telefone: str, site: str = "") -> int:
+    score = 0
+    nome_low = nome.lower()
+    tel = normalizar_telefone(telefone)
+    site_low = str(site).lower()
+
+    if len(tel) in (10, 11):
+        score += 2
+
+    if site and site_low not in {"n/a", "nan", ""}:
+        score += 2
+
+    if any(b in nome_low for b in ["savassi", "lourdes", "belvedere", "santo agostinho"]):
+        score += 2
+
+    if any(k in nome_low for k in ["clínica", "clinica", "laser", "spa", "derma", "estética", "estetica"]):
+        score += 2
+
+    if len(nome.split()) >= 2:
+        score += 1
+
+    if len(nome) < 5:
+        score -= 2
+
+    return max(score, 0)
+
+
+def gerar_link_preview(base_url: str, empresa: str, bairro: str, segmento: str) -> str:
+    params = {
+        "empresa": empresa,
+        "local": bairro,
+        "segmento": segmento
+    }
+    return f"{base_url}?{urllib.parse.urlencode(params)}"
+
+
+def generate_custom_links(input_csv=ARQUIVO_LEADS, base_url=SITE_PREVIEW_BASE):
+    if not os.path.exists(input_csv):
+        print(f"❌ Erro: arquivo não encontrado -> {input_csv}")
+        return
+
+    df = pd.read_csv(input_csv).copy()
+
+    for col in ["Empresa", "Telefone", "Site", "Data_Captura"]:
+        if col not in df.columns:
+            df[col] = ""
+
+    df["Telefone"] = df["Telefone"].astype(str)
+    df = df[df["Telefone"].str.strip() != ""].copy()
+    df = df[df["Telefone"].str.lower() != "não encontrado"].copy()
+
+    data_tratamento = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sufixo = datetime.now().strftime("%Y%m%d_%H%M")
+
+    saida = []
+
+    for _, row in df.iterrows():
+        empresa_original = str(row["Empresa"]).strip()
+        empresa_contato = limpar_nome_empresa(empresa_original)
+        telefone = normalizar_telefone(row["Telefone"])
+        site = str(row.get("Site", "")).strip()
+        data_captura = str(row.get("Data_Captura", "")).strip()
+
+        bairro = detectar_bairro(empresa_original, site)
+        segmento = "clínicas de estética"
+        prioridade = score_lead(empresa_contato, telefone, site)
+
+        link = gerar_link_preview(
+            base_url=base_url,
+            empresa=empresa_contato,
+            bairro=bairro,
+            segmento=segmento
+        )
+
+        saida.append({
+            "Empresa_Original": empresa_original,
+            "Empresa_Contato": empresa_contato,
+            "Telefone": telefone,
+            "Bairro": bairro,
+            "Site": "" if site.lower() in {"nan", "n/a"} else site,
+            "Segmento": segmento,
+            "Link": link,
+            "Prioridade": prioridade,
+            "Pronto_Para_Enviar": "SIM" if prioridade >= 5 else "REVISAR",
+            "Data_Captura": data_captura,
+            "Data_Tratamento": data_tratamento
+        })
+
+    df_saida = pd.DataFrame(saida)
+    df_saida = df_saida.sort_values(
+        by=["Pronto_Para_Enviar", "Prioridade", "Empresa_Contato"],
+        ascending=[True, False, True]
+    ).reset_index(drop=True)
+
+    arquivo_datado = f"leads_tratados_para_envio_{sufixo}.csv"
+    arquivo_estavel = "leads_tratados_para_envio.csv"
+
+    df_saida.to_csv(arquivo_datado, index=False, encoding="utf-8-sig")
+    df_saida.to_csv(arquivo_estavel, index=False, encoding="utf-8-sig")
+
+    print("✅ Arquivos gerados:")
+    print(f"- {arquivo_datado}")
+    print(f"- {arquivo_estavel}")
+
+
+if __name__ == "__main__":
+    generate_custom_links()
+--- ARQUIVO: ./lista_para_whatsapp.txt ---
+
+Empresa: Vibe Clinic
+Bairro: Savassi
+WhatsApp: 31997645936
+Link: http://127.0.0.1:8000/index.html?empresa=Vibe+Clinic&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Naked Laser BH
+Bairro: Belo Horizonte
+WhatsApp: 3132274488
+Link: http://127.0.0.1:8000/index.html?empresa=Naked+Laser+BH&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Éclat Savassi
+Bairro: Savassi
+WhatsApp: 31971971715
+Link: http://127.0.0.1:8000/index.html?empresa=%C3%89clat+Savassi&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clinica Lev
+Bairro: Savassi
+WhatsApp: 3132614533
+Link: http://127.0.0.1:8000/index.html?empresa=Clinica+Lev&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica de Estética Gisa
+Bairro: Belo Horizonte
+WhatsApp: 31972152505
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Gisa&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Botocenter Savassi: Clinica de
+Bairro: Savassi
+WhatsApp: 31990885888
+Link: http://127.0.0.1:8000/index.html?empresa=Botocenter+Savassi%3A+Clinica+de&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Estética
+Bairro: Belo Horizonte
+WhatsApp: 31995654250
+Link: http://127.0.0.1:8000/index.html?empresa=Est%C3%A9tica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Dra Marina Mageste
+Bairro: Savassi
+WhatsApp: 31981005115
+Link: http://127.0.0.1:8000/index.html?empresa=Dra+Marina+Mageste&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Estética Luma Corpore
+Bairro: Belo Horizonte
+WhatsApp: 3131917172
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Est%C3%A9tica+Luma+Corpore&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Estética Elisabete Candiotto
+Bairro: Belo Horizonte
+WhatsApp: 3132233616
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Est%C3%A9tica+Elisabete+Candiotto&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Luar Estética _Limpeza
+Bairro: Savassi
+WhatsApp: 31989906455
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Luar+Est%C3%A9tica+_Limpeza&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Beleza Completa Savassi
+Bairro: Savassi
+WhatsApp: 31995674526
+Link: http://127.0.0.1:8000/index.html?empresa=Beleza+Completa+Savassi&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: CLÍNICA GUTA MACIEL
+Bairro: Belo Horizonte
+WhatsApp: 31999072912
+Link: http://127.0.0.1:8000/index.html?empresa=CL%C3%8DNICA+GUTA+MACIEL&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Meire Chaves Estética
+Bairro: Savassi
+WhatsApp: 31983073794
+Link: http://127.0.0.1:8000/index.html?empresa=Meire+Chaves+Est%C3%A9tica&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Maíra Nascimento
+Bairro: Belo Horizonte
+WhatsApp: 31983185010
+Link: http://127.0.0.1:8000/index.html?empresa=Ma%C3%ADra+Nascimento&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Dra. Deyse Jardim
+Bairro: Savassi
+WhatsApp: 31971803979
+Link: http://127.0.0.1:8000/index.html?empresa=Dra.+Deyse+Jardim&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Laís França Belo
+Bairro: Belo Horizonte
+WhatsApp: 31988442390
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+La%C3%ADs+Fran%C3%A7a+Belo&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Studio 17 Estética Avançada
+Bairro: Belo Horizonte
+WhatsApp: 31998618465
+Link: http://127.0.0.1:8000/index.html?empresa=Studio+17+Est%C3%A9tica+Avan%C3%A7ada&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Aline de Castro Estética
+Bairro: Belo Horizonte
+WhatsApp: 31992068219
+Link: http://127.0.0.1:8000/index.html?empresa=Aline+de+Castro+Est%C3%A9tica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Espaço Allure
+Bairro: Belo Horizonte
+WhatsApp: 3130173555
+Link: http://127.0.0.1:8000/index.html?empresa=Espa%C3%A7o+Allure&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Paprile Clínica de Estética
+Bairro: Savassi
+WhatsApp: 31971606718
+Link: http://127.0.0.1:8000/index.html?empresa=Paprile+Cl%C3%ADnica+de+Est%C3%A9tica&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clinica Sorelle Depilação a
+Bairro: Belo Horizonte
+WhatsApp: 31972380101
+Link: http://127.0.0.1:8000/index.html?empresa=Clinica+Sorelle+Depila%C3%A7%C3%A3o+a&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Dra. Natália Andrade
+Bairro: Belo Horizonte
+WhatsApp: 31992437650
+Link: http://127.0.0.1:8000/index.html?empresa=Dra.+Nat%C3%A1lia+Andrade&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica de Estética Alexandre
+Bairro: Belo Horizonte
+WhatsApp: 31975568190
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Alexandre&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Sou Priscilla Estética
+Bairro: Belo Horizonte
+WhatsApp: 31982748449
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Sou+Priscilla+Est%C3%A9tica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Coll Up
+Bairro: Belo Horizonte
+WhatsApp: 3135684168
+Link: http://127.0.0.1:8000/index.html?empresa=Coll+Up&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: La Vie Clínica Especializada
+Bairro: Belo Horizonte
+WhatsApp: 3132610198
+Link: http://127.0.0.1:8000/index.html?empresa=La+Vie+Cl%C3%ADnica+Especializada&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Spa Premier Savassi
+Bairro: Savassi
+WhatsApp: 31995179665
+Link: http://127.0.0.1:8000/index.html?empresa=Spa+Premier+Savassi&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Instituto Thoppi
+Bairro: Belo Horizonte
+WhatsApp: 3137895978
+Link: http://127.0.0.1:8000/index.html?empresa=Instituto+Thoppi&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Espaço Cuidartte
+Bairro: Savassi
+WhatsApp: 31994948116
+Link: http://127.0.0.1:8000/index.html?empresa=Espa%C3%A7o+Cuidartte&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: ClinEscultural Savassi
+Bairro: Savassi
+WhatsApp: 31971984803
+Link: http://127.0.0.1:8000/index.html?empresa=ClinEscultural+Savassi&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Mari Laser Clínica de
+Bairro: Savassi
+WhatsApp: 31984572405
+Link: http://127.0.0.1:8000/index.html?empresa=Mari+Laser+Cl%C3%ADnica+de&local=Savassi&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Estetic Doctor BH
+Bairro: Belo Horizonte
+WhatsApp: 31982565533
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Estetic+Doctor+BH&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: LeFit Estética
+Bairro: Belo Horizonte
+WhatsApp: 31998804262
+Link: http://127.0.0.1:8000/index.html?empresa=LeFit+Est%C3%A9tica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Quizare Estética e Spa
+Bairro: Belo Horizonte
+WhatsApp: 3132451512
+Link: http://127.0.0.1:8000/index.html?empresa=Quizare+Est%C3%A9tica+e+Spa&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: My Beleza Centro
+Bairro: Belo Horizonte
+WhatsApp: 31971543406
+Link: http://127.0.0.1:8000/index.html?empresa=My+Beleza+Centro&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Dra. Talita Negrão Clínica
+Bairro: Belo Horizonte
+WhatsApp: 31995970044
+Link: http://127.0.0.1:8000/index.html?empresa=Dra.+Talita+Negr%C3%A3o+Cl%C3%ADnica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Tetê Araújo Massoterapeuta
+Bairro: Belo Horizonte
+WhatsApp: 3130553435
+Link: http://127.0.0.1:8000/index.html?empresa=Tet%C3%AA+Ara%C3%BAjo+Massoterapeuta&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Flávia Motta
+Bairro: Belo Horizonte
+WhatsApp: 31988345655
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Fl%C3%A1via+Motta&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica Le Deux
+Bairro: Belo Horizonte
+WhatsApp: 3135689948
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+Le+Deux&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Ana Paula Estética
+Bairro: Belo Horizonte
+WhatsApp: 31984099919
+Link: http://127.0.0.1:8000/index.html?empresa=Ana+Paula+Est%C3%A9tica&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+Empresa: Clínica de Estética Avançada
+Bairro: Belo Horizonte
+WhatsApp: 31994214141
+Link: http://127.0.0.1:8000/index.html?empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Avan%C3%A7ada&local=Belo+Horizonte&segmento=especialistas+em+est%C3%A9tica
+------------------------------
+--- ARQUIVO: ./meu_crm_estetica.csv ---
+
+﻿Empresa,Telefone,Status,Ultimo_Contato,Observacao,Link,Caminho_Print,Mensagem
+Vibe Clinic - Clínica de Estética - Savassi,31997645936,Novo,-,-,,,
+Naked Laser BH - Clínica de Estética Avançada | Remoção de Tatuagem | Depilação à laser | Rejuvenescimento Facial,3132274488,Novo,-,-,,,
+Éclat Savassi,31971971715,Novo,-,-,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=%C3%89clat+Savassi&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Éclat_Savassi.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Éclat Savassi, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona."
+Clinica Lev - Savassi,3132614533,Novo,-,-,,,
+Clínica de Estética Gisa Andrade,31972152505,Novo,-,-,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Gisa+Andrade&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Clínica_de_Estética_Gisa_Andrade.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Clínica de Estética Gisa Andrade, pensando em uma proposta de benefício odontológico para a equipe da clínica em Belo Horizonte.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona."
+"Botocenter Savassi: Clinica de Estética, Belo Horizonte MG",31990885888,Novo,-,-,,,
+Estética,31995654250,Novo,-,-,,,
+Dra Marina Mageste | Estética Avançada | Especialista em BOTOX E QUALIDADE DE PELE | Mentoria VIP | Belo Horizonte Savassi,31981005115,Novo,-,-,,,
+Clínica Estética Luma Corpore,3131917172,Novo,-,-,,,
+Clínica Estética Elisabete Candiotto,3132233616,Novo,-,-,,,
+"Clínica Luar Estética _Limpeza de Pele em Belo Horizonte, Lavieen _Savassi, Microagulhamento",31989906455,Novo,-,-,,,
+Beleza Completa Savassi,31995674526,Novo,-,-,,,
+CLÍNICA GUTA MACIEL - SAVASSI -LIMPEZA DE PELE BH - BOTOX-DRENAGEM LINFÁTICA - GESTANTE-LIPEDEMA - CELULITE -SOBRANCELHAS,31999072912,Novo,-,-,,,
+Meire Chaves Estética - Savassi,31983073794,Novo,-,-,,,
+Maíra Nascimento - Estética Avançada,31983185010,Novo,-,-,,,
+Dra. Deyse Jardim - Clínica de Estética e Odontologia na Savassi em BH,31971803979,Novo,-,-,,,
+Clínica Laís França Belo Horizonte,31988442390,Novo,-,-,,,
+Studio 17 Estética Avançada,31998618465,Novo,-,-,,,
+Aline de Castro Estética Facial,31992068219,Novo,-,-,,,
+Espaço Allure - Dermatologia e Estética,3130173555,Novo,-,-,,,
+Paprile Clínica de Estética e Bem-Estar Savassi,31971606718,Novo,-,-,,,
+Clinica Sorelle Depilação a Laser e Estética Avançada,31972380101,Novo,-,-,,,
+Dra. Natália Andrade - Odontologia estética,31992437650,Novo,-,-,,,
+Clínica de Estética Alexandre Adolfo,31975568190,Novo,-,-,,,
+Clínica Sou Priscilla Estética,31982748449,Novo,-,-,,,
+Coll Up - Clínica de Estética e Colágeno em Bh,3135684168,Novo,-,-,,,
+La Vie Clínica Especializada em Estética,3132610198,Novo,-,-,,,
+Spa Premier Savassi,31995179665,Novo,-,-,,,
+Instituto Thoppi,3137895978,Novo,-,-,,,
+Espaço Cuidartte - Savassi,31994948116,Novo,-,-,,,
+ClinEscultural Savassi - Depilação a Laser,31971984803,Novo,-,-,,,
+"Mari Laser Clínica de Depilação a Laser em Savassi BH, Estética Íntima, Remoção de Tatuagem e Micropigmentação, Black Peel",31984572405,Novo,-,-,,,
+Clínica Estetic Doctor BH,31982565533,Novo,-,-,,,
+LeFit Estética,31998804262,Novo,-,-,,,
+Quizare Estética e Spa urbano,3132451512,Novo,-,-,,,
+"My Beleza Centro - Depilação a Laser, Emgracimento, Botox e Ultraformer",31971543406,Novo,-,-,,,
+Dra. Talita Negrão Clínica de Estética Avançada Tricologia e Biomedicina,31995970044,Novo,-,-,,,
+"Tetê Araújo Massoterapeuta - Massagem Relaxante, Massagem Desportiva, Limpeza de Pele, Drenagem Linfática, Day Spa,",3130553435,Novo,-,-,,,
+Clínica Flávia Motta,31988345655,Novo,-,-,,,
+Clínica Le Deux,3135689948,Novo,-,-,,,
+Ana Paula Estética,31984099919,Novo,-,-,,,
+Clínica de Estética Avançada - Lily Fisio,31994214141,Novo,-,-,,,
+
+--- ARQUIVO: ./index.html ---
+
+<!doctype html>
+<html lang="pt-BR" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SulAmérica Odonto PME | Proposta Personalizada</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              primary: "#082f49",
+              accent: "#ea580c",
+              gold: "#b45309",
+              soft: "#f8fafc",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+      }
+      .hero-bg {
+        background:
+          linear-gradient(rgba(8, 47, 73, 0.9), rgba(8, 47, 73, 0.92)),
+          url("https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2070&auto=format&fit=crop");
+        background-size: cover;
+        background-position: center;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 overflow-x-hidden font-sans">
+    <header
+      class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200"
+    >
+      <nav
+        class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg"
+          >
+            <span class="text-white font-bold text-xl">S</span>
+          </div>
+          <div class="leading-none">
+            <span class="text-lg font-bold text-primary block"
+              >SulAmérica Odonto</span
+            >
+            <span
+              class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold"
+            >
+              proposta personalizada
+            </span>
+          </div>
+        </div>
+
+        <a
+          href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+          target="_blank"
+          class="bg-primary text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-md"
+        >
+          Ver contratação
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-bg text-white py-20 md:py-28 relative">
+        <div
+          class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center"
+        >
+          <div class="space-y-8">
+            <div
+              class="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-4 py-2 rounded-full backdrop-blur-md"
+            >
+              <span class="relative flex h-2 w-2">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-2 w-2 bg-accent"
+                ></span>
+              </span>
+              <span
+                id="texto-local"
+                class="text-xs font-bold uppercase tracking-widest text-slate-200"
+              >
+                Proposta exclusiva BH
+              </span>
+            </div>
+
+            <div class="space-y-4">
+              <p
+                class="text-sm uppercase tracking-[0.25em] text-white/60 font-bold"
+              >
+                visualização personalizada para
+              </p>
+
+              <h1
+                class="text-4xl md:text-6xl font-extrabold tracking-tighter leading-[0.95]"
+              >
+                <span
+                  id="empresa-nome"
+                  class="text-accent underline decoration-accent/30 tracking-tight break-words"
+                >
+                  sua clínica
+                </span>
+              </h1>
+
+              <p
+                class="text-xl text-slate-300 font-light leading-relaxed max-w-2xl"
+              >
+                Sua equipe cuida da beleza dos outros. Quem cuida do sorriso
+                deles? Esta apresentação foi montada para mostrar como um
+                benefício odontológico pode ser comunicado para
+                <span
+                  id="texto-segmento"
+                  class="text-white font-semibold italic"
+                >
+                  profissionais de estética
+                </span>
+                em
+                <span id="texto-cidade" class="text-white font-semibold italic">
+                  Minas Gerais </span
+                >.
+              </p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 pt-2">
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="bg-accent text-white px-10 py-5 rounded-full font-bold text-lg shadow-2xl text-center"
+              >
+                Ver contratação online
+              </a>
+
+              <a
+                href="#planos"
+                class="bg-white/10 border border-white/20 text-white px-10 py-5 rounded-full font-bold text-lg text-center"
+              >
+                Ver resumo
+              </a>
+            </div>
+          </div>
+
+          <div class="hidden md:block relative">
+            <div
+              class="bg-white/10 backdrop-blur-md rounded-[2.5rem] p-5 shadow-2xl border border-white/10"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1598256989800-fe5f95da9787?q=80&w=2070&auto=format&fit=crop"
+                class="rounded-[2rem] shadow-2xl object-cover h-[520px] w-full"
+                alt="Profissional"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="planos" class="py-24 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-6">
+          <div class="grid md:grid-cols-2 gap-16 items-center">
+            <div
+              class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 relative overflow-hidden"
+            >
+              <div
+                class="absolute top-0 right-0 bg-accent text-white px-6 py-2 rounded-bl-2xl font-bold text-xs uppercase"
+              >
+                Melhor custo-benefício
+              </div>
+
+              <h3 class="text-2xl font-bold text-primary mb-4">
+                Plano Odonto PME
+              </h3>
+
+              <p class="text-slate-500 mb-8">
+                Investimento estratégico para retenção e valorização da equipe.
+              </p>
+
+              <div class="flex items-baseline gap-1 mb-8">
+                <span class="text-slate-400 text-lg">R$</span>
+                <span class="text-6xl font-black text-primary tracking-tighter"
+                  >26,90</span
+                >
+                <span class="text-slate-400 text-lg">/mês por vida</span>
+              </div>
+
+              <ul class="space-y-4 mb-10">
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Cirurgias e procedimentos do rol</span>
+                </li>
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Limpezas e restaurações</span>
+                </li>
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Apresentação simples e contratação online</span>
+                </li>
+              </ul>
+
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="block w-full text-center bg-primary text-white py-4 rounded-xl font-bold hover:bg-sky-900 transition shadow-lg"
+              >
+                Ir para contratação
+              </a>
+            </div>
+
+            <div class="space-y-6">
+              <h2
+                class="text-4xl font-extrabold tracking-tight text-primary leading-tight"
+              >
+                Por que isso pode fazer sentido para
+                <span id="empresa-inline" class="text-accent">sua clínica</span
+                >?
+              </h2>
+
+              <div
+                class="space-y-4 text-lg text-slate-600 font-light leading-relaxed"
+              >
+                <p>
+                  No setor de estética e bem-estar, a equipe é parte central da
+                  experiência do cliente. Um benefício simples e bem apresentado
+                  aumenta a percepção de cuidado interno.
+                </p>
+
+                <p>
+                  <strong class="text-primary font-bold italic"
+                    >Valor percebido:</strong
+                  >
+                  mesmo com investimento acessível, a comunicação correta
+                  transforma o benefício em algo relevante para o time.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="py-20 bg-primary text-white text-center">
+        <div class="max-w-4xl mx-auto px-6">
+          <h2 class="text-3xl font-bold mb-4">
+            Rede credenciada ampla e contratação online simplificada
+          </h2>
+          <p class="text-white/70 text-lg mb-8">
+            Quando houver interesse, o próximo passo pode ser feito direto pela
+            página oficial da SulAmérica.
+          </p>
+          <a
+            href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+            target="_blank"
+            class="inline-block bg-accent text-white px-8 py-4 rounded-full font-bold shadow-xl"
+          >
+            Abrir página oficial
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      function obterParametro(nome) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(nome);
+      }
+
+      const empresa = decodeURIComponent(
+        obterParametro("empresa") || "Sua clínica",
+      );
+      const local = decodeURIComponent(
+        obterParametro("local") || "Belo Horizonte",
+      );
+      const segmento = decodeURIComponent(
+        obterParametro("segmento") || "clínicas de estética",
+      );
+
+      document.getElementById("empresa-nome").textContent = empresa;
+      document.getElementById("empresa-inline").textContent = empresa;
+      document.getElementById("texto-local").textContent =
+        `Proposta exclusiva para ${local}`;
+      document.getElementById("texto-cidade").textContent = local;
+      document.getElementById("texto-segmento").textContent = segmento;
+    </script>
+  </body>
+</html>
+
+--- ARQUIVO: ./esteira_pronta_para_envio.csv ---
+
+﻿Empresa,Telefone,Bairro,Prioridade,Link,Caminho_Print,Mensagem,Status_Envio
+"Botocenter Savassi: Clinica de Estética,",31990885888,Savassi,9,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Botocenter+Savassi%3A+Clinica+de+Est%C3%A9tica%2C&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Botocenter_Savassi_Clinica_de_Estética.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Botocenter Savassi: Clinica de Estética,, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Clinica Lev,3132614533,Savassi,7,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Clinica+Lev&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Clinica_Lev.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Clinica Lev, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Clínica de Estética Gisa Andrade,31972152505,Belo Horizonte,7,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Cl%C3%ADnica+de+Est%C3%A9tica+Gisa+Andrade&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Clínica_de_Estética_Gisa_Andrade.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Clínica de Estética Gisa Andrade, pensando em uma proposta de benefício odontológico para a equipe da clínica em Belo Horizonte.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Naked Laser BH,3132274488,Belo Horizonte,7,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Naked+Laser+BH&local=Belo+Horizonte&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Naked_Laser_BH.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Naked Laser BH, pensando em uma proposta de benefício odontológico para a equipe da clínica em Belo Horizonte.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Vibe Clinic,31997645936,Savassi,7,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Vibe+Clinic&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Vibe_Clinic.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Vibe Clinic, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Dra Marina Mageste,31981005115,Savassi,5,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=Dra+Marina+Mageste&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Dra_Marina_Mageste.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Dra Marina Mageste, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+Éclat Savassi,31971971715,Savassi,5,https://sulamericaodonto.com.br/?corretora=semprepresente&empresa=%C3%89clat+Savassi&local=Savassi&segmento=cl%C3%ADnicas+de+est%C3%A9tica,prints_personalizados/Éclat_Savassi.png,"Olá! Tudo bem?
+
+Eu montei uma visualização de site personalizada no nome da Éclat Savassi, pensando em uma proposta de benefício odontológico para a equipe da clínica em Savassi.
+
+Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.
+Se acharem interessante, eu explico rapidinho como funciona.",REVISAR_ANTES_DE_ENVIAR
+
+--- ARQUIVO: ./automacao_total.py ---
+
+import os
+import re
+import time
+import random
+import urllib.parse
+import pandas as pd
+from datetime import datetime
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
+
+SITE_PREVIEW_BASE = "http://127.0.0.1:8000/preview_print.html"
+SITE_LANDING_BASE = "http://127.0.0.1:8000/index.html"
+
+ARQUIVO_BASE = "leads_tratados_para_envio.csv"
+CRM_FILE = "meu_crm_estetica.csv"
+PASTA_PRINTS = "prints_personalizados"
+
+if not os.path.exists(PASTA_PRINTS):
+    os.makedirs(PASTA_PRINTS)
+
+
+def slug_seguro(texto: str) -> str:
+    texto = re.sub(r"[^\wÀ-ÿ\s-]", "", str(texto)).strip()
+    texto = re.sub(r"\s+", "_", texto)
+    return texto[:80]
+
+
+def configurar_navegador_mobile():
+    chrome_options = Options()
+    mobile_emulation = {"deviceName": "iPhone 12 Pro"}
+    chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--window-size=430,932")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--log-level=3")
+
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=chrome_options)
+
+
+def gerar_link(base_url: str, empresa: str, bairro: str, segmento: str) -> str:
+    params = {
+        "empresa": empresa,
+        "local": bairro,
+        "segmento": segmento
+    }
+    return f"{base_url}?{urllib.parse.urlencode(params)}"
+
+
+def montar_mensagem_inicial(nome_empresa: str, bairro: str) -> str:
+    return (
+        f"Olá! Tudo bem?\n\n"
+        f"Eu montei uma visualização de site personalizada no nome da {nome_empresa}, "
+        f"pensando em uma proposta de benefício odontológico para a equipe da clínica em {bairro}.\n\n"
+        f"Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.\n"
+        f"Se acharem interessante, eu explico rapidinho como funciona."
+    )
+
+
+def esperar_nome_personalizado(driver, nome_empresa: str, timeout=10):
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((By.ID, "empresa-nome"))
+        )
+
+        def texto_ok(drv):
+            try:
+                el = drv.find_element(By.ID, "empresa-nome")
+                txt = el.text.strip().lower()
+                alvo = nome_empresa.strip().lower()
+                return alvo in txt or txt == alvo
+            except Exception:
+                return False
+
+        WebDriverWait(driver, timeout).until(texto_ok)
+        return True
+    except Exception:
+        return False
+
+
+def tirar_print(driver, url, caminho_img, nome_empresa):
+    print(f"🌐 Abrindo preview: {url}")
+    driver.get(url)
+    driver.execute_script("window.scrollTo(0, 0);")
+
+    ok = esperar_nome_personalizado(driver, nome_empresa, timeout=10)
+    time.sleep(random.uniform(1.2, 2.2))
+
+    if not ok:
+        print(f"⚠️ Nome da clínica não confirmou no DOM para: {nome_empresa}")
+
+    driver.save_screenshot(caminho_img)
+
+
+def carregar_ou_criar_crm():
+    if os.path.exists(CRM_FILE):
+        return pd.read_csv(CRM_FILE)
+    raise FileNotFoundError(
+        "CRM não encontrado. Rode primeiro o crm_vendas.py para criar o arquivo meu_crm_estetica.csv"
+    )
+
+
+def atualizar_crm_pos_geracao(df_crm, empresa, link_landing, caminho_print, mensagem):
+    idx = df_crm[df_crm["Empresa"].astype(str).str.lower() == str(empresa).lower()].index
+    if not idx.empty:
+        df_crm.loc[idx, "Link"] = link_landing
+        df_crm.loc[idx, "Caminho_Print"] = caminho_print
+        df_crm.loc[idx, "Mensagem"] = mensagem
+    return df_crm
+
+
+def processar_esteira(limite_por_execucao=15):
+    if not os.path.exists(ARQUIVO_BASE):
+        raise FileNotFoundError(
+            "Arquivo leads_tratados_para_envio.csv não encontrado. Rode primeiro o link_generator.py"
+        )
+
+    df = pd.read_csv(ARQUIVO_BASE).copy()
+
+    df = df[df["Pronto_Para_Enviar"] == "SIM"].copy()
+    df = df.sort_values(
+        by=["Prioridade", "Empresa_Contato"],
+        ascending=[False, True]
+    ).head(limite_por_execucao)
+
+    if df.empty:
+        print("⚠️ Nenhum lead pronto para envio.")
+        return
+
+    driver = configurar_navegador_mobile()
+    df_crm = carregar_ou_criar_crm()
+
+    lista_envio = []
+    data_geracao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sufixo = datetime.now().strftime("%Y%m%d_%H%M")
+
+    print(f"🚀 Preparando {len(df)} leads para revisão/envio...")
+
+    for _, row in df.iterrows():
+        nome = str(row["Empresa_Contato"]).strip()
+        bairro = str(row["Bairro"]).strip()
+        telefone = re.sub(r"\D", "", str(row["Telefone"]))
+        segmento = str(row.get("Segmento", "clínicas de estética")).strip()
+        data_captura = str(row.get("Data_Captura", "")).strip()
+
+        link_preview = gerar_link(
+            base_url=SITE_PREVIEW_BASE,
+            empresa=nome,
+            bairro=bairro,
+            segmento=segmento
+        )
+
+        link_landing = gerar_link(
+            base_url=SITE_LANDING_BASE,
+            empresa=nome,
+            bairro=bairro,
+            segmento=segmento
+        )
+
+        nome_img = f"{slug_seguro(nome)}.png"
+        caminho_img = os.path.join(PASTA_PRINTS, nome_img)
+
+        print(f"📸 Gerando print para: {nome}")
+        tirar_print(driver, link_preview, caminho_img, nome)
+
+        mensagem = montar_mensagem_inicial(nome, bairro)
+
+        lista_envio.append({
+            "Empresa": nome,
+            "Telefone": telefone,
+            "Bairro": bairro,
+            "Prioridade": row["Prioridade"],
+            "Link_Preview": link_preview,
+            "Link_Landing": link_landing,
+            "Caminho_Print": caminho_img,
+            "Mensagem": mensagem,
+            "Status_Envio": "REVISAR_ANTES_DE_ENVIAR",
+            "Data_Captura": data_captura,
+            "Data_Geracao_Print": data_geracao
+        })
+
+        df_crm = atualizar_crm_pos_geracao(
+            df_crm=df_crm,
+            empresa=nome,
+            link_landing=link_landing,
+            caminho_print=caminho_img,
+            mensagem=mensagem
+        )
+
+        time.sleep(random.uniform(1.0, 2.0))
+
+    driver.quit()
+
+    df_final = pd.DataFrame(lista_envio)
+    arquivo_datado = f"esteira_pronta_para_envio_{sufixo}.csv"
+    arquivo_estavel = "esteira_pronta_para_envio.csv"
+
+    df_final.to_csv(arquivo_datado, index=False, encoding="utf-8-sig")
+    df_final.to_csv(arquivo_estavel, index=False, encoding="utf-8-sig")
+    df_crm.to_csv(CRM_FILE, index=False, encoding="utf-8-sig")
+
+    print("\n✅ Tudo pronto.")
+    print("Arquivos gerados/atualizados:")
+    print(f"- {arquivo_datado}")
+    print(f"- {arquivo_estavel}")
+    print("- meu_crm_estetica.csv")
+    print(f"- pasta {PASTA_PRINTS}/")
+
+
+if __name__ == "__main__":
+    processar_esteira(limite_por_execucao=15)
+--- ARQUIVO: ./preview_print.html ---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prévia personalizada</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              primary: "#082f49",
+              accent: "#ea580c",
+              soft: "#eff6ff",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-sans">
+    <main class="min-h-screen bg-gradient-to-b from-slate-100 to-white">
+      <section class="px-5 pt-6 pb-8">
+        <div class="max-w-md mx-auto">
+          <div
+            class="bg-primary text-white rounded-[28px] p-5 shadow-2xl overflow-hidden"
+          >
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-extrabold text-lg"
+              >
+                S
+              </div>
+              <div>
+                <div class="font-extrabold text-lg leading-tight">
+                  SulAmérica Odonto
+                </div>
+                <div
+                  class="text-[11px] uppercase tracking-[0.18em] text-white/70"
+                >
+                  visualização personalizada
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white/80 mb-4"
+            >
+              <span id="texto-local">Proposta para Belo Horizonte</span>
+            </div>
+
+            <p
+              class="text-xs text-white/70 mb-2 uppercase tracking-wider font-bold"
+            >
+              Clínica destacada
+            </p>
+
+            <h1
+              id="empresa-nome"
+              class="text-3xl leading-tight font-extrabold text-accent mb-4 break-words"
+            >
+              Sua clínica
+            </h1>
+
+            <p class="text-sm text-white/90 leading-relaxed mb-5">
+              Montei esta visualização para mostrar como um benefício
+              odontológico pode ser apresentado de forma profissional para a
+              equipe da
+              <span id="empresa-inline" class="font-bold text-white"
+                >sua clínica</span
+              >.
+            </p>
+
+            <div class="bg-white text-slate-900 rounded-3xl p-4 shadow-xl mb-4">
+              <div
+                class="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-2"
+              >
+                resumo da proposta
+              </div>
+
+              <h2
+                class="text-lg font-extrabold text-primary leading-tight mb-3"
+              >
+                Benefício odontológico com apresentação personalizada
+              </h2>
+
+              <div class="space-y-3 mb-4">
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    segmento
+                  </div>
+                  <div
+                    id="texto-segmento"
+                    class="text-sm font-semibold text-slate-800"
+                  >
+                    clínicas de estética
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    cidade
+                  </div>
+                  <div
+                    id="texto-cidade"
+                    class="text-sm font-semibold text-slate-800"
+                  >
+                    Belo Horizonte
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-soft p-3">
+                  <div
+                    class="text-[11px] text-slate-500 font-bold uppercase mb-1"
+                  >
+                    referência
+                  </div>
+                  <div class="text-sm font-semibold text-slate-800">
+                    A partir de R$ 26,90 por vida
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="block w-full text-center bg-accent text-white font-bold py-4 rounded-2xl shadow-lg"
+              >
+                Ver contratação online
+              </a>
+            </div>
+
+            <p class="text-[11px] text-white/60 leading-relaxed">
+              Prévia criada para apresentação inicial da proposta.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      function obterParametro(nome) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(nome);
+      }
+
+      const empresa = decodeURIComponent(
+        obterParametro("empresa") || "Sua clínica",
+      );
+      const local = decodeURIComponent(
+        obterParametro("local") || "Belo Horizonte",
+      );
+      const segmento = decodeURIComponent(
+        obterParametro("segmento") || "clínicas de estética",
+      );
+
+      document.getElementById("empresa-nome").textContent = empresa;
+      document.getElementById("empresa-inline").textContent = empresa;
+      document.getElementById("texto-local").textContent =
+        `Proposta para ${local}`;
+      document.getElementById("texto-cidade").textContent = local;
+      document.getElementById("texto-segmento").textContent = segmento;
+    </script>
+  </body>
+</html>
+
+--- ARQUIVO: ./README.md ---
+
+# 🚀 B2B Hyper-Personalization Pipeline (SulAmérica Odonto)
+
+Este projeto é um ecossistema de automação de prospecção focado no setor de saúde e benefícios. Ele resolve o problema da "prospecção fria" genérica, utilizando **Hiper-Personalização Dinâmica** e **Automação de UI** para aumentar drasticamente as taxas de conversão no WhatsApp.
+
+---
+
+## 💡 O Problema e a Solução
+
+**O Problema:** Abordagens de vendas genéricas (Spam) são ignoradas ou bloqueadas. Donos de clínicas de estética recebem dezenas de mensagens automáticas diariamente e possuem "filtro" para textos longos.
+
+**A Solução:** Um pipeline técnico que transforma leads brutos (Google Maps) em uma experiência de venda única:
+1.  **Extração & Limpeza:** Coleta de leads geolocalizados em bairros estratégicos de Belo Horizonte (Lourdes, Savassi, Santo Agostinho).
+2.  **Landing Page Dinâmica:** Uma página de vendas (Tailwind CSS) que se adapta via `URL Params` para injetar o nome da empresa e o bairro do cliente em tempo real no DOM.
+3.  **Prova Visual Automatizada:** O sistema utiliza **Selenium** para simular um iPhone 12, acessa a página personalizada e gera um screenshot real da proposta exclusiva para ser enviado via WhatsApp.
+4.  **CRM de Fluxo:** Persistência em CSV para controle de funil (Pendente, Enviado, Interessado).
+
+---
+
+## 🛠️ Tecnologias e Arquitetura
+
+* **Linguagem:** Python 3.11 (Foco em Automação e Data Scraping)
+* **Automação de Browser:** Selenium WebDriver (Chrome Headless)
+* **Manipulação de Dados:** Pandas (Engine para o micro-CRM local)
+* **Frontend Sênior:** HTML5, Tailwind CSS (Design Mobile-First e Persuasivo)
+* **Infraestrutura:** Git, Linux Debian, Ambiente Virtual (venv)
+
+---
+
+## 📂 Estrutura do Ecossistema
+
+* `index.html`: Landing Page otimizada com injeção de dados via JavaScript.
+* `automacao_total.py`: O "Orquestrador" que gerencia o ciclo: URL -> Screenshot -> CRM Update.
+* `lead_scraper.py`: Inteligência de coleta e extração de dados brutos.
+* `crm_vendas.py`: Script de persistência para gestão de contatos e status.
+
+---
+
+## ⚙️ Como Executar
+
+1.  **Clone o repositório:**
+    ```bash
+    git clone [https://github.com/caiobaraujo/VendaOdonto.git](https://github.com/caiobaraujo/VendaOdonto.git)
+    ```
+
+2.  **Crie e ative o ambiente virtual:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+3.  **Instale as dependências:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Inicie o servidor local para a Landing Page:**
+    ```bash
+    python3 -m http.server 8000
+    ```
+
+5.  **Execute a esteira de produção:**
+    ```bash
+    python3 automacao_total.py
+    ```
+
+---
+
+## 📈 Diferenciais Técnicos e de Negócio
+
+* **Pattern Interrupt:** O uso de imagens personalizadas quebra o padrão de spam e gera curiosidade imediata.
+* **Ancoragem de Preço:** Estratégia visual focada no baixo custo por vida (R$ 26,90) vs. alto valor de retenção de talentos.
+* **Escalabilidade:** Arquitetura pronta para ser migrada para uma VPS ou integrada com orquestradores como **n8n**.
+* **Segurança:** Arquivos sensíveis e dados de leads protegidos via `.gitignore`.
+
+---
+
+### 👨‍💻 Sobre o Desenvolvedor
+**Caio Araújo** - Desenvolvedor Full-Stack focado em criar soluções que automatizam processos e geram ROI real para o negócio.
+
+--- ARQUIVO: ./leads_santo_agostinho_belo_horizonte.csv ---
+
+﻿Empresa,Telefone,Site
+Camila Soares - Harmonização Facial e Ortodontia,031999834505,https://wa.link/gpwwv5
+"My Beleza Centro - Depilação a Laser, Emgracimento, Botox e Ultraformer",031971543406,http://www.mybeleza.com.br/
+"MyBeleza - Santo Agostinho - Depilação a Laser, Emagrecimento, Botox e Ultraformer",031998346921,http://www.mybeleza.com.br/
+Bella Corp Estética Avançada e Laser,031975947203,N/A
+Clínica Dra Jessica Ribeiro,031986966564,https://drajessicaribeiro.com.br/
+Dra Naiane Ribeiro - Clínica Unique,031997198924,https://abre.ai/k4VZ
+Dra. Lorena Layla Estética Avançada,03130236558,http://www.lorenalaylaestetica.com.br/
+Face Doctor – Clínica de Estética Avançada em Santo Agostinho B.H,031998532552,https://www.instagram.com/facedoctorsantoagostinhobh
+Suav Santo Agostinho,03132274004,N/A
+Clínica AM- Dra. Adrielle Moraes | Tricologia & Harmonização Facial,03132451512,https://www.instagram.com/clinicaadriellemoraes/
+Clínica Estética Bio Modelli,031975025799,N/A
+Dra. Camilla Lima - Estética e Saúde,031988437776,https://meulink.lat/esteticadracamilla_lima
+Taciana Ribeiro Estética,03136548911,http://tacianaribeiro.com/
+Plenna Estética Avançada,03125101303,https://www.plennaesteticaavancada.com.br/
+Clínica de Estética BH Lourdes - Dra Paula Melo_Preenchimento de Olheiras e Labial Lavieen Tricologia Bigode Chinês & Botox,031973065360,https://drapaulamelo.com.br/
+Isabela Aguiar Estética Avançada,031991886711,N/A
+Clínica de Estética Mais Jovem Lourdes,031982629303,https://maisjovembr.com.br/
+Clínica Flávia Freitas,031987926494,https://flaviadefreitas.com.br/
+RENOVA BEAUTY & SPA,031999303117,https://linktr.ee/renovabeautybh
+Lumina Laser,03132138252,http://www.luminalaser.com.br/
+Bella Estúdio,03132924743,http://instagram.com/bellaestudio
+Dra Marina Fonte Boa | Dermatologista em Belo Horizonte,031996158935,https://dramarinafonteaurium.growdoc.com.br/?utm_source=google&utm_campaign=gmn
+SKINCENTER MEDICINA INTEGRADA,03136582653,http://skincenterbh.com.br/
+Fios e Formas - Instituto de Beleza,03132918113,N/A
+Sense BEAUTY - Harmonização Facial BH / Botox BH / Extensão de Cílios BH,031993937424,http://www.sensebeautybh.com/
+Clínica Dra. Lígia Colucci - dermatologia Bh - Coolsculpting MG,03132911035,http://www.draligiacolucci.com.br/
+Dra. Tatiana Rage - Emagrecimento em Belo Horizonte,031996776451,https://www.instagram.com/dratatianarage/
+Ammirare Clínica,031996982016,http://www.ammirareclinica.com.br/
+Dra. Renata Meyer | Dermatologista | Belo Horizonte,031971838956,http://www.drarenatameyer.com.br/
+AMA Derma,031996532000,http://amaderma.com.br/
+Meu Salão Ateliê da Beleza,03131462400,N/A
+Clinica Estetica BH,031993866785,http://clinicaesteticabh.com.br/
+Merah Saúde e Bem-estar,03121181842,http://merah.com.br/
+Studio Raíssa Lima,031991660952,N/A
+Clínica SKIN,031994143000,N/A
+WD Studio Hair,03133275010,https://l.instagram.com/?u=https%3A%2F%2Fwa.me%2Fmessage%2FUZROMRH4XAUVC1&e=ATPj61eeQXFObcEagLjk3M4liYboT743GsWEKFY3FIuGnQdrEnBK5-xp8B4ZOD9H9_9CFzx-GsFBU4y5Pn6Jd1agfyFhz2ixYbi20A&s=1
+Anna Pegova Belo Horizonte - Clínica de Estética - Limpeza de Pele,03132929191,http://www.annapegova.com.br/
+Núcleo Allerevita Clínica,03137892340,http://nucleoallerevita.com.br/
+Spa e Studio LS,031985276617,N/A
+
+--- ARQUIVO: ./leads_clinica_de_estetica.csv ---
+
+﻿Empresa,Telefone,Site
+Vibe Clinic - Clínica de Estética - Savassi,031997645936,https://bio.site/vibeclinic
+Naked Laser BH - Clínica de Estética Avançada | Remoção de Tatuagem | Depilação à laser | Rejuvenescimento Facial,03132274488,https://nakedbh.com.br/
+Éclat Savassi,031971971715,N/A
+Clinica Lev - Savassi,03132614533,http://www.clinicalev.com.br/
+Clínica de Estética Gisa Andrade,031972152505,https://www.instagram.com/clinicagisaandrade?igsh=MXVqcWx5eGI1ZWl6MA%3D%3D&utm_source=qr
+"Botocenter Savassi: Clinica de Estética, Belo Horizonte MG",031990885888,https://www.botocenter.com.br/
+Estética,031995654250,N/A
+Dra Marina Mageste | Estética Avançada | Especialista em BOTOX E QUALIDADE DE PELE | Mentoria VIP | Belo Horizonte Savassi,031981005115,https://www.instagram.com/marinamageste/
+
+
+
+--- ARQUIVO: ./crm_vendas.py ---
+
+import os
+from datetime import datetime
+import pandas as pd
+
+CRM_FILE = "meu_crm_estetica.csv"
+BASE_TRATADA = "leads_tratados_para_envio.csv"
+
+COLUNAS_CRM = [
+    "Empresa",
+    "Telefone",
+    "Bairro",
+    "Site",
+    "Prioridade",
+    "Status",
+    "Ultimo_Contato",
+    "Observacao",
+    "Link",
+    "Caminho_Print",
+    "Mensagem",
+    "Data_Captura",
+    "Data_Entrada_CRM",
+]
+
+
+def criar_ou_carregar_crm(csv_base=BASE_TRATADA):
+    if os.path.exists(CRM_FILE):
+        df = pd.read_csv(CRM_FILE)
+        print("✅ CRM carregado com sucesso.")
+        return df
+
+    if not os.path.exists(csv_base):
+        raise FileNotFoundError(f"Arquivo base não encontrado: {csv_base}")
+
+    df_base = pd.read_csv(csv_base).copy()
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    for col in [
+        "Empresa_Contato", "Telefone", "Bairro", "Site", "Prioridade",
+        "Link", "Data_Captura"
+    ]:
+        if col not in df_base.columns:
+            df_base[col] = ""
+
+    df = pd.DataFrame({
+        "Empresa": df_base["Empresa_Contato"],
+        "Telefone": df_base["Telefone"],
+        "Bairro": df_base["Bairro"],
+        "Site": df_base["Site"],
+        "Prioridade": df_base["Prioridade"],
+        "Status": "Novo",
+        "Ultimo_Contato": "",
+        "Observacao": "",
+        "Link": df_base["Link"],
+        "Caminho_Print": "",
+        "Mensagem": "",
+        "Data_Captura": df_base["Data_Captura"],
+        "Data_Entrada_CRM": agora,
+    })
+
+    df = df[COLUNAS_CRM]
+    df.to_csv(CRM_FILE, index=False, encoding="utf-8-sig")
+
+    arquivo_backup = f"meu_crm_estetica_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    df.to_csv(arquivo_backup, index=False, encoding="utf-8-sig")
+
+    print(f"🚀 CRM criado com {len(df)} leads.")
+    print(f"💾 Backup: {arquivo_backup}")
+    return df
+
+
+def atualizar_status(empresa_nome, novo_status, obs=""):
+    if not os.path.exists(CRM_FILE):
+        raise FileNotFoundError("CRM ainda não existe.")
+
+    df = pd.read_csv(CRM_FILE)
+
+    idx = df[df["Empresa"].astype(str).str.contains(empresa_nome, case=False, na=False)].index
+
+    if idx.empty:
+        print("❌ Empresa não encontrada no CRM.")
+        return
+
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    df.loc[idx, "Status"] = novo_status
+    df.loc[idx, "Observacao"] = obs
+    df.loc[idx, "Ultimo_Contato"] = agora
+
+    df.to_csv(CRM_FILE, index=False, encoding="utf-8-sig")
+    print(f"✅ Status atualizado: {empresa_nome} -> {novo_status}")
+
+
+if __name__ == "__main__":
+    crm = criar_ou_carregar_crm()
+    print("\nResumo do funil:")
+    print(crm["Status"].value_counts(dropna=False))
+--- ARQUIVO: ./requirements.txt ---
+
+greenlet==3.3.2
+numpy==2.4.3
+pandas==3.0.1
+playwright==1.58.0
+playwright-stealth==2.0.2
+pyee==13.0.1
+python-dateutil==2.9.0.post0
+six==1.17.0
+typing_extensions==4.15.0
+
+--- ARQUIVO: ./lead_scraper.py ---
+
+import asyncio
+import pandas as pd
+import re
+import random
+from datetime import datetime
+from urllib.parse import quote_plus
+
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+
+
+CITY = "Santo Agostinho Belo Horizonte"
+NICHE = "Clínica de Estética"
+
+
+def normalizar_telefone(valor: str) -> str:
+    if not valor:
+        return ""
+
+    apenas_digitos = re.sub(r"\D", "", str(valor))
+
+    if not apenas_digitos:
+        return ""
+
+    # remove prefixo 55 se vier
+    if apenas_digitos.startswith("55") and len(apenas_digitos) > 11:
+        apenas_digitos = apenas_digitos[2:]
+
+    # remove zero inicial de DDD
+    if apenas_digitos.startswith("0") and len(apenas_digitos) >= 11:
+        apenas_digitos = apenas_digitos[1:]
+
+    return apenas_digitos
+
+
+async def esperar(min_s=1.0, max_s=2.0):
+    await asyncio.sleep(random.uniform(min_s, max_s))
+
+
+async def extrair_telefone(page) -> str:
+    # tentativa 1
+    try:
+        phone_el = await page.query_selector('button[data-item-id^="phone:tel:"]')
+        if phone_el:
+            phone_raw = await phone_el.get_attribute("data-item-id")
+            if phone_raw:
+                phone = phone_raw.replace("phone:tel:", "")
+                phone = normalizar_telefone(phone)
+                if phone:
+                    return phone
+    except Exception:
+        pass
+
+    # tentativa 2
+    try:
+        main_panel = await page.query_selector('div[role="main"]')
+        if main_panel:
+            texto = await main_panel.inner_text()
+            match = re.search(r'(\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4})', texto)
+            if match:
+                phone = normalizar_telefone(match.group(1))
+                if phone:
+                    return phone
+    except Exception:
+        pass
+
+    return ""
+
+
+async def extrair_site(page) -> str:
+    try:
+        site_el = await page.query_selector('a[data-item-id="authority"]')
+        if site_el:
+            href = await site_el.get_attribute("href")
+            return href or ""
+    except Exception:
+        pass
+    return ""
+
+
+async def scrape_beauty_leads(city=CITY, niche=NICHE):
+    data_captura = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data_arquivo = datetime.now().strftime("%Y%m%d_%H%M")
+    consulta = f"{niche} em {city}"
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, slow_mo=250)
+        context = await browser.new_context(
+            viewport={"width": 1366, "height": 900},
+            locale="pt-BR",
+        )
+        page = await context.new_page()
+
+        search_url = f"https://www.google.com/maps/search/{quote_plus(consulta)}"
+
+        print(f"🌐 Abrindo busca: {consulta}")
+        await page.goto(search_url, wait_until="domcontentloaded")
+        await page.wait_for_timeout(5000)
+
+        # scroll conservador na lista
+        print("🧭 Carregando resultados...")
+        for _ in range(6):
+            await page.mouse.move(250, 420)
+            await page.mouse.wheel(0, 2200)
+            await esperar(1.5, 2.5)
+
+        items = await page.query_selector_all('div[role="article"]')
+        print(f"📊 {len(items)} itens encontrados. Extraindo...")
+
+        leads = []
+
+        for i, item in enumerate(items, start=1):
+            try:
+                title_el = await item.query_selector(".fontHeadlineSmall")
+                nome = await title_el.inner_text() if title_el else ""
+
+                nome = (nome or "").strip()
+                if not nome:
+                    continue
+
+                await item.click()
+                await page.wait_for_timeout(2500)
+
+                telefone = await extrair_telefone(page)
+                site = await extrair_site(page)
+
+                lead = {
+                    "Empresa": nome,
+                    "Telefone": telefone if telefone else "Não encontrado",
+                    "Site": site if site else "N/A",
+                    "Consulta": consulta,
+                    "Data_Captura": data_captura,
+                }
+
+                leads.append(lead)
+                print(f"✅ {i:02d}. {nome} | {telefone if telefone else 'Sem telefone'}")
+
+                await esperar(1.2, 2.2)
+
+            except PlaywrightTimeoutError:
+                print(f"⚠️ Timeout no item {i}")
+                continue
+            except Exception as e:
+                print(f"⚠️ Erro no item {i}: {e}")
+                continue
+
+        await browser.close()
+
+    if not leads:
+        print("❌ Nenhum lead encontrado.")
+        return
+
+    df = pd.DataFrame(leads)
+
+    # mantém só quem tem telefone
+    df = df[df["Telefone"] != "Não encontrado"].copy()
+
+    # remove duplicados por telefone, mantendo o primeiro
+    df = df.drop_duplicates(subset=["Telefone"]).reset_index(drop=True)
+
+    nome_base = f"leads_{city.lower().replace(' ', '_')}"
+    arquivo_datado = f"{nome_base}_{data_arquivo}.csv"
+    arquivo_estavel = f"{nome_base}.csv"
+
+    df.to_csv(arquivo_datado, index=False, encoding="utf-8-sig")
+    df.to_csv(arquivo_estavel, index=False, encoding="utf-8-sig")
+
+    print(f"\n✅ Leads salvos:")
+    print(f"- {arquivo_datado}")
+    print(f"- {arquivo_estavel}")
+    print(f"📌 Total final: {len(df)}")
+
+
+if __name__ == "__main__":
+    asyncio.run(scrape_beauty_leads())

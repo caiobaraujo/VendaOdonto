@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prévia personalizada | SulAmérica Odonto PME</title>
+    <title>SulAmérica Odonto PME | Proposta Personalizada</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,7 +17,8 @@
             colors: {
               primary: "#082f49",
               accent: "#ea580c",
-              soft: "#eff6ff",
+              gold: "#b45309",
+              soft: "#f8fafc",
             },
           },
         },
@@ -27,114 +28,279 @@
       body {
         -webkit-font-smoothing: antialiased;
       }
+      .hero-bg {
+        background:
+          linear-gradient(rgba(8, 47, 73, 0.9), rgba(8, 47, 73, 0.92)),
+          url("https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2070&auto=format&fit=crop");
+        background-size: cover;
+        background-position: center;
+      }
     </style>
   </head>
-  <body class="bg-slate-50 text-slate-900 font-sans">
-    <main class="min-h-screen">
-      <section class="bg-primary text-white px-5 pt-6 pb-8">
-        <div class="max-w-md mx-auto">
-          <div class="flex items-center gap-3 mb-5">
-            <div
-              class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center font-extrabold text-lg"
-            >
-              S
-            </div>
-            <div>
-              <div class="font-extrabold text-lg leading-tight">
-                SulAmérica Odonto
-              </div>
-              <div class="text-xs uppercase tracking-[0.18em] text-white/70">
-                prévia personalizada
-              </div>
-            </div>
-          </div>
-
+  <body class="bg-slate-50 text-slate-900 overflow-x-hidden font-sans">
+    <header
+      class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200"
+    >
+      <nav
+        class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
           <div
-            class="inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/80 mb-4"
+            class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg"
           >
-            <span id="texto-local">Proposta para Belo Horizonte</span>
+            <span class="text-white font-bold text-xl">S</span>
           </div>
+          <div class="leading-none">
+            <span class="text-lg font-bold text-primary block"
+              >SulAmérica Odonto</span
+            >
+            <span
+              class="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold"
+            >
+              proposta personalizada
+            </span>
+          </div>
+        </div>
 
-          <p class="text-sm text-white/70 mb-2">Visualização criada para:</p>
+        <a
+          href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+          target="_blank"
+          class="bg-primary text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-md"
+        >
+          Ver contratação
+        </a>
+      </nav>
+    </header>
 
-          <h1
-            id="empresa-nome"
-            class="text-3xl leading-tight font-extrabold text-accent mb-4 break-words"
-          >
-            Sua clínica
-          </h1>
-
-          <p class="text-base leading-relaxed text-white/90 mb-6">
-            Montei esta prévia para mostrar como um benefício odontológico pode
-            ser apresentado de forma simples para a equipe da
-            <span id="empresa-inline" class="font-bold text-white"
-              >sua clínica</span
-            >.
-          </p>
-
-          <div class="bg-white text-slate-900 rounded-3xl p-5 shadow-2xl mb-5">
+    <main>
+      <section class="hero-bg text-white py-20 md:py-28 relative">
+        <div
+          class="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center"
+        >
+          <div class="space-y-8">
             <div
-              class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2"
+              class="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-4 py-2 rounded-full backdrop-blur-md"
             >
-              proposta resumida
-            </div>
-
-            <h2 class="text-xl font-extrabold text-primary leading-tight mb-3">
-              Benefício odontológico com apresentação personalizada
-            </h2>
-
-            <p class="text-sm text-slate-600 leading-relaxed mb-4">
-              Pensado para
-              <span id="texto-segmento" class="font-semibold text-slate-800"
-                >clínicas de estética</span
+              <span class="relative flex h-2 w-2">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-2 w-2 bg-accent"
+                ></span>
+              </span>
+              <span
+                id="texto-local"
+                class="text-xs font-bold uppercase tracking-widest text-slate-200"
               >
-              em
-              <span id="texto-cidade" class="font-semibold text-slate-800"
-                >Belo Horizonte</span
-              >.
-            </p>
-
-            <div class="grid gap-3 mb-5">
-              <div class="rounded-2xl bg-soft p-3">
-                <div class="text-xs text-slate-500 font-bold uppercase mb-1">
-                  diferencial
-                </div>
-                <div class="text-sm font-semibold text-slate-800">
-                  Aparência profissional e percepção de cuidado com a equipe
-                </div>
-              </div>
-
-              <div class="rounded-2xl bg-soft p-3">
-                <div class="text-xs text-slate-500 font-bold uppercase mb-1">
-                  referência de valor
-                </div>
-                <div class="text-sm font-semibold text-slate-800">
-                  A partir de R$ 26,90 por vida
-                </div>
-              </div>
-
-              <div class="rounded-2xl bg-soft p-3">
-                <div class="text-xs text-slate-500 font-bold uppercase mb-1">
-                  objetivo
-                </div>
-                <div class="text-sm font-semibold text-slate-800">
-                  Mostrar a ideia antes de qualquer decisão
-                </div>
-              </div>
+                Proposta exclusiva BH
+              </span>
             </div>
 
-            <a
-              href="https://sulamericaodonto.com.br/?corretora=semprepresente"
-              target="_blank"
-              class="block w-full text-center bg-accent text-white font-bold py-4 rounded-2xl shadow-lg"
-            >
-              Ver página de contratação
-            </a>
+            <div class="space-y-4">
+              <p
+                class="text-sm uppercase tracking-[0.25em] text-white/60 font-bold"
+              >
+                visualização personalizada para
+              </p>
+
+              <h1
+                class="text-4xl md:text-6xl font-extrabold tracking-tighter leading-[0.95]"
+              >
+                <span
+                  id="empresa-nome"
+                  class="text-accent underline decoration-accent/30 tracking-tight break-words"
+                >
+                  sua clínica
+                </span>
+              </h1>
+
+              <p
+                class="text-xl text-slate-300 font-light leading-relaxed max-w-2xl"
+              >
+                Sua equipe cuida da beleza dos outros. Quem cuida do sorriso
+                deles? Esta apresentação foi montada para mostrar como um
+                benefício odontológico pode ser comunicado para
+                <span
+                  id="texto-segmento"
+                  class="text-white font-semibold italic"
+                >
+                  profissionais de estética
+                </span>
+                em
+                <span id="texto-cidade" class="text-white font-semibold italic">
+                  Minas Gerais </span
+                >.
+              </p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 pt-2">
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="bg-accent text-white px-10 py-5 rounded-full font-bold text-lg shadow-2xl text-center"
+              >
+                Ver contratação online
+              </a>
+
+              <a
+                href="#planos"
+                class="bg-white/10 border border-white/20 text-white px-10 py-5 rounded-full font-bold text-lg text-center"
+              >
+                Ver resumo
+              </a>
+            </div>
           </div>
 
-          <div class="text-xs text-white/60 leading-relaxed">
-            Esta é uma visualização personalizada para apresentação da proposta.
+          <div class="hidden md:block relative">
+            <div
+              class="bg-white/10 backdrop-blur-md rounded-[2.5rem] p-5 shadow-2xl border border-white/10"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1598256989800-fe5f95da9787?q=80&w=2070&auto=format&fit=crop"
+                class="rounded-[2rem] shadow-2xl object-cover h-[520px] w-full"
+                alt="Profissional"
+              />
+            </div>
           </div>
+        </div>
+      </section>
+
+      <section id="planos" class="py-24 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-6">
+          <div class="grid md:grid-cols-2 gap-16 items-center">
+            <div
+              class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-200 relative overflow-hidden"
+            >
+              <div
+                class="absolute top-0 right-0 bg-accent text-white px-6 py-2 rounded-bl-2xl font-bold text-xs uppercase"
+              >
+                Melhor custo-benefício
+              </div>
+
+              <h3 class="text-2xl font-bold text-primary mb-4">
+                Plano Odonto PME
+              </h3>
+
+              <p class="text-slate-500 mb-8">
+                Investimento estratégico para retenção e valorização da equipe.
+              </p>
+
+              <div class="flex items-baseline gap-1 mb-8">
+                <span class="text-slate-400 text-lg">R$</span>
+                <span class="text-6xl font-black text-primary tracking-tighter"
+                  >26,90</span
+                >
+                <span class="text-slate-400 text-lg">/mês por vida</span>
+              </div>
+
+              <ul class="space-y-4 mb-10">
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Cirurgias e procedimentos do rol</span>
+                </li>
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Limpezas e restaurações</span>
+                </li>
+                <li class="flex items-center gap-3 text-slate-700">
+                  <svg
+                    class="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <span>Apresentação simples e contratação online</span>
+                </li>
+              </ul>
+
+              <a
+                href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+                target="_blank"
+                class="block w-full text-center bg-primary text-white py-4 rounded-xl font-bold hover:bg-sky-900 transition shadow-lg"
+              >
+                Ir para contratação
+              </a>
+            </div>
+
+            <div class="space-y-6">
+              <h2
+                class="text-4xl font-extrabold tracking-tight text-primary leading-tight"
+              >
+                Por que isso pode fazer sentido para
+                <span id="empresa-inline" class="text-accent">sua clínica</span
+                >?
+              </h2>
+
+              <div
+                class="space-y-4 text-lg text-slate-600 font-light leading-relaxed"
+              >
+                <p>
+                  No setor de estética e bem-estar, a equipe é parte central da
+                  experiência do cliente. Um benefício simples e bem apresentado
+                  aumenta a percepção de cuidado interno.
+                </p>
+
+                <p>
+                  <strong class="text-primary font-bold italic"
+                    >Valor percebido:</strong
+                  >
+                  mesmo com investimento acessível, a comunicação correta
+                  transforma o benefício em algo relevante para o time.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="py-20 bg-primary text-white text-center">
+        <div class="max-w-4xl mx-auto px-6">
+          <h2 class="text-3xl font-bold mb-4">
+            Rede credenciada ampla e contratação online simplificada
+          </h2>
+          <p class="text-white/70 text-lg mb-8">
+            Quando houver interesse, o próximo passo pode ser feito direto pela
+            página oficial da SulAmérica.
+          </p>
+          <a
+            href="https://sulamericaodonto.com.br/?corretora=semprepresente"
+            target="_blank"
+            class="inline-block bg-accent text-white px-8 py-4 rounded-full font-bold shadow-xl"
+          >
+            Abrir página oficial
+          </a>
         </div>
       </section>
     </main>
@@ -158,7 +324,7 @@
       document.getElementById("empresa-nome").textContent = empresa;
       document.getElementById("empresa-inline").textContent = empresa;
       document.getElementById("texto-local").textContent =
-        `Proposta para ${local}`;
+        `Proposta exclusiva para ${local}`;
       document.getElementById("texto-cidade").textContent = local;
       document.getElementById("texto-segmento").textContent = segmento;
     </script>
