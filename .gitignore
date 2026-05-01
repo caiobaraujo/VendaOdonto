@@ -1,23 +1,26 @@
-# Ambientes virtuais (nunca envie a pasta venv)
-venv/
-env/
-.venv/
-
-# Arquivos de dados (os leads que você extraiu)
-*.csv
-*.xlsx
-
-# Cache do Python
+# Python
 __pycache__/
 *.py[cod]
+venv/
+*.egg-info/
 
-# Variáveis de ambiente (caso use um arquivo .env no futuro)
-.env
+# Banco de dados
+data/crm.db
 
-# Pasta de imagens geradas
-prints_personalizados/
+# Prints gerados (podem conter dados sensíveis)
+prints_personalizados/*.png
 
-lista_para_whatsapp.txt
+# Arquivos CSV antigos
+*.csv
+!requirements.txt
 
-# Arquivos temporários de editores (LibreOffice/Excel)
-.~lock.*
+# IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

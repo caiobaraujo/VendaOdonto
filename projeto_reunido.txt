@@ -1594,7 +1594,7 @@ async def scrape_beauty_leads(city=CITY, niche=NICHE):
 
         print(f"🌐 Abrindo busca: {consulta}")
         await page.goto(search_url, wait_until="domcontentloaded")
-        await page.wait_for_timeout(5000)
+        await page.wait_for_timeout(5001)
 
         # scroll conservador na lista
         print("🧭 Carregando resultados...")
