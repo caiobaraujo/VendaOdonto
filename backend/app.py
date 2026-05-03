@@ -5,9 +5,11 @@ import threading
 from datetime import datetime
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
+from backend.senders.mensagem_persuasiva import MensagemPersuasiva
 
 # Adiciona o diretório pai ao path para importar os módulos
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 from backend.models import (
     init_db, get_session, Lead, ScrapingJob, ScrapingProgress
@@ -40,6 +42,37 @@ lead_processor = LeadProcessor()
 
 # Estado global dos jobs (para MVP, depois pode ir para Redis)
 active_jobs = {}
+
+mensagem_gen = MensagemPersuasiva()
+
+@app.route('/api/leads/<int:lead_id>/mensagem-whatsapp', methods=['GET'])
+def obter_mensagem_whatsapp(lead_id):
+    """Retorna a mensagem personalizada para WhatsApp"""
+    session = get_session()
+    try:
+        lead = session.query(Lead).get(lead_id)
+        if not lead:
+            return jsonify({'error': 'Lead não encontrado'}), 404
+        
+        dados = lead.to_dict()
+        
+        # Gera mensagem apropriada baseada na prioridade
+        if lead.prioridade >= 7:
+            mensagem = mensagem_gen.gerar_mensagem_completa(dados)
+        else:
+            mensagem = mensagem_gen.gerar_mensagem_curta(dados)
+        
+        return jsonify({
+            'mensagem': mensagem,
+            'lead_id': lead_id,
+            'empresa': lead.empresa_contato,
+            'telefone': lead.telefone
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
 
 @app.route('/')
 def index():
@@ -405,7 +438,7 @@ def _executar_scraping(job_id: int, bairro: str, nicho: str):
         # Importa e executa o scraper
         from backend.scrapers.maps_scraper import GoogleMapsScraper
         
-        scraper = GoogleMapsScraper(max_leads=6)  # Limite de 6
+        scraper = GoogleMapsScraper(max_leads=8)  # Limite de 8
         resultado = scraper.buscar_leads(bairro=bairro, nicho=nicho)
         
         leads_brutos = resultado['leads']

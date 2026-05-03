@@ -122,14 +122,30 @@ class LeadProcessor:
         }
         return f"http://127.0.0.1:8000/preview_print.html?{urllib.parse.urlencode(params)}"
     
-    def montar_mensagem_whatsapp(self, nome_empresa: str, bairro: str) -> str:
-        """Monta a mensagem personalizada para WhatsApp"""
+    
+    def montar_mensagem_whatsapp(self, nome_empresa: str, bairro: str, segmento: str = "clínicas de estética") -> str:
+        """Monta a mensagem persuasiva para WhatsApp (sem ser spam)"""
+        
+        # Personaliza saudação baseado no horário
+        from datetime import datetime
+        hora = datetime.now().hour
+        if hora < 12:
+            saudacao = "Bom dia"
+        elif hora < 18:
+            saudacao = "Boa tarde"
+        else:
+            saudacao = "Boa noite"
+        
         return (
-            f"Olá! Tudo bem?\n\n"
-            f"Eu montei uma visualização de site personalizada no nome da {nome_empresa}, "
-            f"pensando em uma proposta de benefício odontológico para a equipe da clínica em {bairro}.\n\n"
-            f"Já deixei a prévia pronta na imagem aqui embaixo para vocês verem primeiro.\n"
-            f"Se acharem interessante, eu explico rapidinho como funciona."
+            f"{saudacao}! Tudo bem? 🦷✨\n\n"
+            f"Meu nome é [SEU NOME] e eu criei uma demonstração personalizada de como "
+            f"um benefício odontológico poderia funcionar para a equipe da *{nome_empresa}*.\n\n"
+            f"Preparei especialmente para clínicas em *{bairro}* — "
+            f"é uma proposta simples, com valores a partir de R$ 26,90 por pessoa, "
+            f"e que pode ajudar na retenção da equipe.\n\n"
+            f"Montei uma visualização rápida pra vocês verem como ficaria.\n\n"
+            f"👇 Segue o print da apresentação personalizada abaixo.\n"
+            f"Se fizer sentido, podemos conversar rapidinho."
         )
     
     def processar_lead_bruto(self, dados_brutos: dict) -> dict:

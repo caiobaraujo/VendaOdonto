@@ -505,11 +505,10 @@
                                 <div class="text-xs text-gray-400 mt-1">${escapeHtml(lead.empresa_original || "")}</div>
                             </td>
                             <td class="px-6 py-4">
-                                <a href="https://wa.me/55${lead.telefone}" target="_blank" 
-                                   class="text-green-600 hover:text-green-800 font-medium flex items-center gap-2">
-                                    <i class="fab fa-whatsapp"></i>
+                                <span class="text-gray-700 font-medium flex items-center gap-2">
+                                    <i class="fab fa-whatsapp text-green-500"></i>
                                     ${formatarTelefone(lead.telefone)}
-                                </a>
+                                </span>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="px-3 py-1 bg-slate-100 rounded-full text-sm font-medium text-gray-700">
@@ -554,9 +553,10 @@
                                         <i class="fas fa-check"></i>
                                     </button>
                                     
-                                    <a href="https://wa.me/55${lead.telefone}?text=${encodeURIComponent(lead.mensagem_whatsapp || "")}" 
-                                       target="_blank"
-                                       class="text-green-500 hover:text-green-700" title="Abrir WhatsApp">
+                                    <a href="#" 
+                                      onclick="enviarWhatsappCompleto(${lead.id}); return false;"
+                                      class="text-green-500 hover:text-green-700" 
+                                      title="Enviar mensagem completa">
                                         <i class="fab fa-whatsapp"></i>
                                     </a>
                                 </div>
@@ -916,6 +916,85 @@
             `;
 
         paginacao.innerHTML = html;
+      }
+
+      async function enviarWhatsappCompleto(leadId) {
+        mostrarToast("📱 Preparando WhatsApp...", "info");
+
+        try {
+          // Primeiro, verifica se tem print
+          const responseLead = await fetch(`/api/leads/${leadId}`);
+          const lead = await responseLead.json();
+
+          // Se não tem print, gera primeiro
+          if (!lead.caminho_print) {
+            mostrarToast("🖨️ Gerando print primeiro...", "info");
+
+            const responsePrint = await fetch(
+              `/api/leads/${leadId}/gerar-print`,
+              {
+                method: "POST",
+              },
+            );
+
+            if (!responsePrint.ok) {
+              mostrarToast("❌ Erro ao gerar print", "error");
+              return;
+            }
+
+            // Aguarda um pouco e recarrega
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+          }
+
+          // Busca a mensagem personalizada da API
+          const responseMsg = await fetch(
+            `/api/leads/${leadId}/mensagem-whatsapp`,
+          );
+          const dataMsg = await responseMsg.json();
+
+          if (!dataMsg.mensagem) {
+            mostrarToast("❌ Erro ao gerar mensagem", "error");
+            return;
+          }
+
+          // Codifica a mensagem para URL
+          const mensagemCodificada = encodeURIComponent(dataMsg.mensagem);
+          const telefone = lead.telefone.replace(/\D/g, "");
+
+          // Abre WhatsApp (tenta desktop primeiro, depois web)
+          const urls = [
+            `whatsapp://send?phone=55${telefone}&text=${mensagemCodificada}`,
+            `https://web.whatsapp.com/send?phone=55${telefone}&text=${mensagemCodificada}`,
+          ];
+
+          for (const url of urls) {
+            try {
+              window.open(url, "_blank");
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
+
+          // Instruções visuais
+          mostrarToast(
+            "✅ WhatsApp aberto! Arraste o print da pasta 'prints_personalizados'",
+            "success",
+          );
+
+          // Marca como contatado
+          await fetch(`/api/leads/${leadId}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "Contatado" }),
+          });
+
+          // Recarrega tabela
+          setTimeout(() => carregarLeads(), 1000);
+        } catch (error) {
+          console.error("Erro:", error);
+          mostrarToast("❌ Erro ao preparar envio", "error");
+        }
       }
     </script>
   </body>
