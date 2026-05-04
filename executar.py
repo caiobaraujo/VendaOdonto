@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 🚀 Script principal para executar o sistema completo.
-Inicia o servidor Flask com o dashboard e todas as funcionalidades.
 """
 
 import os
@@ -15,7 +14,7 @@ def main():
     print("🚀 SULAMÉRICA ODONTO - SISTEMA DE PROSPECÇÃO")
     print("=" * 60)
     
-    # Verifica se as dependências estão instaladas
+    # Verifica dependências
     try:
         import flask
         import sqlalchemy
@@ -25,7 +24,7 @@ def main():
         print("Execute: pip install -r requirements.txt")
         sys.exit(1)
     
-    # Cria diretórios necessários
+    # Cria diretórios
     os.makedirs('data', exist_ok=True)
     os.makedirs('prints_personalizados', exist_ok=True)
     print("✅ Diretórios criados")
@@ -37,12 +36,12 @@ def main():
     print("💡 Pressione Ctrl+C para parar")
     print("=" * 60 + "\n")
     
-    # Abre o navegador automaticamente após 1.5 segundos
-    Timer(1.5, lambda: webbrowser.open('http://localhost:5001')).start()
+    # Abre o navegador UMA ÚNICA VEZ após 2 segundos
+    Timer(2.0, lambda: webbrowser.open('http://localhost:5001', new=0)).start()
     
-    # Inicia o Flask
+    # Inicia o Flask (sem debug para não abrir aba extra)
     from backend.app import app
-    app.run(debug=True, port=5001, host='0.0.0.0')
+    app.run(debug=False, port=5001, host='0.0.0.0')
 
 if __name__ == '__main__':
     main()

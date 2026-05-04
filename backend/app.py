@@ -3,25 +3,21 @@ import sys
 import json
 import threading
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
-from backend.senders.mensagem_persuasiva import MensagemPersuasiva
 
-# Adiciona o diretório pai ao path para importar os módulos
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 from backend.models import (
     init_db, get_session, Lead, ScrapingJob, ScrapingProgress
 )
 from backend.processors.lead_processor import LeadProcessor
 
-# Tentativa de importar o scraper (se existir)
 try:
     from backend.scrapers.maps_scraper import GoogleMapsScraper
     SCRAPER_DISPONIVEL = True
 except ImportError:
-    print("⚠️ Scraper não encontrado. Funcionalidade de scraping desabilitada.")
+    print("⚠️ Scraper não encontrado.")
     SCRAPER_DISPONIVEL = False
 
 try:
@@ -31,69 +27,34 @@ except ImportError:
     print("⚠️ Print automator não encontrado.")
     PRINT_AUTOMATOR_DISPONIVEL = False
 
+from backend.senders.whatsapp_simplified import WhatsAppSimplified
+from backend.senders.mensagem_persuasiva import MensagemPersuasiva
+
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend')
 CORS(app)
 
-# Inicializa o banco de dados
 init_db()
 
-# Instancia o processador de leads (singleton)
 lead_processor = LeadProcessor()
-
-# Estado global dos jobs (para MVP, depois pode ir para Redis)
-active_jobs = {}
-
+whatsapp_sender = WhatsAppSimplified()
 mensagem_gen = MensagemPersuasiva()
 
-@app.route('/api/leads/<int:lead_id>/mensagem-whatsapp', methods=['GET'])
-def obter_mensagem_whatsapp(lead_id):
-    """Retorna a mensagem personalizada para WhatsApp"""
-    session = get_session()
-    try:
-        lead = session.query(Lead).get(lead_id)
-        if not lead:
-            return jsonify({'error': 'Lead não encontrado'}), 404
-        
-        dados = lead.to_dict()
-        
-        # Gera mensagem apropriada baseada na prioridade
-        if lead.prioridade >= 7:
-            mensagem = mensagem_gen.gerar_mensagem_completa(dados)
-        else:
-            mensagem = mensagem_gen.gerar_mensagem_curta(dados)
-        
-        return jsonify({
-            'mensagem': mensagem,
-            'lead_id': lead_id,
-            'empresa': lead.empresa_contato,
-            'telefone': lead.telefone
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+active_jobs = {}
 
 @app.route('/')
 def index():
-    """Serve o DASHBOARD"""
     return render_template('index.html')
 
 @app.route('/landing.html')
 def landing():
-    """Serve a LANDING PAGE de vendas personalizada"""
     return render_template('landing.html')
 
 @app.route('/preview_print.html')
 def preview_print():
-    """Serve a página de preview para prints"""
     return render_template('preview_print.html')
-
-# ==================== API ENDPOINTS ====================
 
 @app.route('/api/health')
 def health_check():
-    """Endpoint de saúde da API"""
     return jsonify({
         'status': 'online',
         'timestamp': datetime.now().isoformat(),
@@ -103,15 +64,6 @@ def health_check():
 
 @app.route('/api/leads', methods=['GET'])
 def listar_leads():
-    """
-    Lista todos os leads com paginação e filtros.
-    Query params:
-        - page: número da página (default 1)
-        - per_page: itens por página (default 50)
-        - status: filtrar por status (Novo, Contatado, etc)
-        - bairro: filtrar por bairro
-        - pronto_para_enviar: SIM ou REVISAR
-    """
     session = get_session()
     try:
         page = int(request.args.get('page', 1))
@@ -150,7 +102,6 @@ def listar_leads():
 
 @app.route('/api/leads/<int:lead_id>', methods=['GET'])
 def obter_lead(lead_id):
-    """Obtém um lead específico pelo ID"""
     session = get_session()
     try:
         lead = session.query(Lead).get(lead_id)
@@ -164,7 +115,6 @@ def obter_lead(lead_id):
 
 @app.route('/api/leads/<int:lead_id>/status', methods=['PUT'])
 def atualizar_status_lead(lead_id):
-    """Atualiza o status de um lead"""
     session = get_session()
     try:
         data = request.get_json()
@@ -190,7 +140,6 @@ def atualizar_status_lead(lead_id):
 
 @app.route('/api/leads/<int:lead_id>/gerar-print', methods=['POST'])
 def gerar_print_lead(lead_id):
-    """Gera print personalizado para um lead específico"""
     if not PRINT_AUTOMATOR_DISPONIVEL:
         return jsonify({'error': 'Gerador de prints não disponível'}), 503
     
@@ -203,7 +152,7 @@ def gerar_print_lead(lead_id):
         if not lead.link_preview:
             return jsonify({'error': 'Lead não possui link de preview'}), 400
         
-        print(f"\n🖨️ GERANDO PRINT INDIVIDUAL")
+        print(f"\n🖨️ GERANDO PRINT")
         print(f"📍 Empresa: {lead.empresa_contato}")
         
         automator = PrintAutomator()
@@ -216,9 +165,8 @@ def gerar_print_lead(lead_id):
         lead.caminho_print = caminho_print
         session.commit()
         
-        # Cria URL relativa para o frontend
         nome_arquivo = os.path.basename(caminho_print)
-        url_print = f"/static/prints/{nome_arquivo}"
+        url_print = f"/prints/{nome_arquivo}"
         
         print(f"✅ Print gerado: {url_print}")
         
@@ -226,6 +174,7 @@ def gerar_print_lead(lead_id):
             'message': 'Print gerado com sucesso!',
             'caminho_print': caminho_print,
             'url_print': url_print,
+            'nome_arquivo': nome_arquivo,
             'lead': lead.to_dict()
         })
     except Exception as e:
@@ -235,162 +184,70 @@ def gerar_print_lead(lead_id):
     finally:
         session.close()
 
-@app.route('/api/leads/gerar-prints-lote', methods=['POST'])
-def gerar_prints_lote():
-    """Gera prints para múltiplos leads de uma vez"""
-    if not PRINT_AUTOMATOR_DISPONIVEL:
-        return jsonify({'error': 'Gerador de prints não disponível'}), 503
-    
+@app.route('/api/leads/<int:lead_id>/mensagem-whatsapp', methods=['GET'])
+def obter_mensagem_whatsapp(lead_id):
+    """Retorna a mensagem personalizada SEM link do print"""
     session = get_session()
     try:
-        data = request.get_json()
-        lead_ids = data.get('lead_ids', [])
+        lead = session.query(Lead).get(lead_id)
+        if not lead:
+            return jsonify({'error': 'Lead não encontrado'}), 404
         
-        if not lead_ids:
-            return jsonify({'error': 'Lista de IDs vazia'}), 400
+        dados = lead.to_dict()
         
-        leads = session.query(Lead).filter(Lead.id.in_(lead_ids)).all()
-        
-        leads_data = [
-            {
-                'empresa_contato': lead.empresa_contato,
-                'link_preview': lead.link_preview,
-                'id': lead.id
-            }
-            for lead in leads if lead.link_preview
-        ]
-        
-        automator = PrintAutomator()
-        resultados = automator.gerar_prints_em_lote(leads_data)
-        automator.fechar()
-        
-                # Atualiza os caminhos no banco
-        for resultado in resultados:
-            if resultado['sucesso']:
-                lead = session.query(Lead).filter(
-                    Lead.empresa_contato == resultado['empresa']
-                ).first()
-                if lead:
-                    lead.caminho_print = resultado['caminho_print']
-        
-        session.commit()
-        
-        # Cria URLs para o frontend
-        for r in resultados:
-            if r['sucesso']:
-                nome_arquivo = os.path.basename(r['caminho_print'])
-                r['url_print'] = f"/static/prints/{nome_arquivo}"
+        if lead.prioridade >= 7:
+            mensagem = mensagem_gen.gerar_mensagem_completa(dados)
+        else:
+            mensagem = mensagem_gen.gerar_mensagem_curta(dados)
         
         return jsonify({
-            'message': f'{len([r for r in resultados if r["sucesso"]])} prints gerados com sucesso',
-            'resultados': resultados
+            'mensagem': mensagem,
+            'lead_id': lead_id,
+            'empresa': lead.empresa_contato,
+            'telefone': lead.telefone
         })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/leads/<int:lead_id>/enviar-whatsapp', methods=['POST'])
+def enviar_whatsapp_lead(lead_id):
+    """Abre WhatsApp com mensagem (texto + link do site)"""
+    session = get_session()
+    try:
+        lead = session.query(Lead).get(lead_id)
+        if not lead:
+            return jsonify({'error': 'Lead não encontrado'}), 404
+        
+        dados = lead.to_dict()
+        resultado = whatsapp_sender.enviar_mensagem_individual(dados)
+        
+        if resultado['sucesso']:
+            lead.status = 'Contatado'
+            lead.ultimo_contato = datetime.now()
+            session.commit()
+            
+            return jsonify({
+                'message': 'WhatsApp aberto com mensagem!',
+                'resultado': resultado
+            })
+        else:
+            return jsonify({'error': 'Falha ao abrir WhatsApp'}), 500
+            
     except Exception as e:
         session.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
-@app.route('/api/scraping/iniciar', methods=['POST'])
-def iniciar_scraping():
-    """Inicia um job de scraping"""
-    if not SCRAPER_DISPONIVEL:
-        return jsonify({'error': 'Scraper não disponível'}), 503
-    
-    data = request.get_json()
-    bairro = data.get('bairro', 'Santo Agostinho Belo Horizonte')
-    nicho = data.get('nicho', 'Clínica de Estética')
-    
-    job_id = datetime.now().strftime('%Y%m%d%H%M%S')
-    
-    # Cria registro do job
-    session = get_session()
-    try:
-        job = ScrapingJob(
-            consulta=f"{nicho} em {bairro}",
-            bairro=bairro,
-            nicho=nicho
-        )
-        session.add(job)
-        session.commit()
-        job_id = job.id
-        
-        # Inicia scraping em thread separada
-        thread = threading.Thread(
-            target=_executar_scraping,
-            args=(job_id, bairro, nicho)
-        )
-        thread.start()
-        
-        return jsonify({
-            'message': 'Scraping iniciado com sucesso',
-            'job_id': job_id,
-            'consulta': f"{nicho} em {bairro}"
-        }), 202
-    except Exception as e:
-        session.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
-@app.route('/api/scraping/status/<int:job_id>')
-def status_scraping(job_id):
-    """Verifica o status de um job de scraping"""
-    session = get_session()
-    try:
-        job = session.query(ScrapingJob).get(job_id)
-        if not job:
-            return jsonify({'error': 'Job não encontrado'}), 404
-        
-        return jsonify({
-            'job_id': job.id,
-            'status': job.status,
-            'consulta': job.consulta,
-            'leads_encontrados': job.leads_encontrados,
-            'leads_novos': job.leads_novos,
-            'log': job.log,
-            'data_inicio': job.data_inicio.isoformat() if job.data_inicio else None,
-            'data_fim': job.data_fim.isoformat() if job.data_fim else None
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
-@app.route('/api/scraping/historico')
-def historico_scraping():
-    """Lista o histórico de jobs de scraping"""
-    session = get_session()
-    try:
-        jobs = session.query(ScrapingJob).order_by(
-            ScrapingJob.data_inicio.desc()
-        ).limit(20).all()
-        
-        return jsonify({
-            'jobs': [
-                {
-                    'id': job.id,
-                    'consulta': job.consulta,
-                    'status': job.status,
-                    'leads_encontrados': job.leads_encontrados,
-                    'leads_novos': job.leads_novos,
-                    'data_inicio': job.data_inicio.isoformat() if job.data_inicio else None,
-                    'data_fim': job.data_fim.isoformat() if job.data_fim else None
-                }
-                for job in jobs
-            ]
-        })
-    except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:
         session.close()
 
 @app.route('/api/estatisticas')
 def estatisticas():
-    """Retorna estatísticas gerais do CRM"""
     session = get_session()
     try:
         total_leads = session.query(Lead).count()
+        
         leads_por_status = {}
         statuses = session.query(Lead.status).distinct().all()
         for (status,) in statuses:
@@ -418,33 +275,139 @@ def estatisticas():
     finally:
         session.close()
 
-# ==================== FUNÇÕES AUXILIARES ====================
+@app.route('/api/scraping/iniciar', methods=['POST'])
+def iniciar_scraping():
+    if not SCRAPER_DISPONIVEL:
+        return jsonify({'error': 'Scraper não disponível'}), 503
+    
+    data = request.get_json()
+    bairro = data.get('bairro', 'Santo Agostinho Belo Horizonte')
+    nicho = data.get('nicho', 'Clínica de Estética')
+    
+    session = get_session()
+    try:
+        job = ScrapingJob(
+            consulta=f"{nicho} em {bairro}",
+            bairro=bairro,
+            nicho=nicho
+        )
+        session.add(job)
+        session.commit()
+        job_id = job.id
+        
+        thread = threading.Thread(
+            target=_executar_scraping,
+            args=(job_id, bairro, nicho)
+        )
+        thread.start()
+        
+        return jsonify({
+            'message': 'Scraping iniciado com sucesso',
+            'job_id': job_id,
+            'consulta': f"{nicho} em {bairro}"
+        }), 202
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/scraping/status/<int:job_id>')
+def status_scraping(job_id):
+    session = get_session()
+    try:
+        job = session.query(ScrapingJob).get(job_id)
+        if not job:
+            return jsonify({'error': 'Job não encontrado'}), 404
+        
+        return jsonify({
+            'job_id': job.id,
+            'status': job.status,
+            'consulta': job.consulta,
+            'leads_encontrados': job.leads_encontrados,
+            'leads_novos': job.leads_novos,
+            'log': job.log,
+            'data_inicio': job.data_inicio.isoformat() if job.data_inicio else None,
+            'data_fim': job.data_fim.isoformat() if job.data_fim else None
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/scraping/historico')
+def historico_scraping():
+    session = get_session()
+    try:
+        jobs = session.query(ScrapingJob).order_by(
+            ScrapingJob.data_inicio.desc()
+        ).limit(20).all()
+        
+        return jsonify({
+            'jobs': [
+                {
+                    'id': job.id,
+                    'consulta': job.consulta,
+                    'status': job.status,
+                    'leads_encontrados': job.leads_encontrados,
+                    'leads_novos': job.leads_novos,
+                    'data_inicio': job.data_inicio.isoformat() if job.data_inicio else None,
+                    'data_fim': job.data_fim.isoformat() if job.data_fim else None
+                }
+                for job in jobs
+            ]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/api/scraping/progresso/<int:job_id>')
+def progresso_scraping(job_id):
+    session = get_session()
+    try:
+        progress_list = session.query(ScrapingProgress).filter(
+            ScrapingProgress.job_id == job_id
+        ).order_by(ScrapingProgress.timestamp.asc()).all()
+        
+        return jsonify({
+            'job_id': job_id,
+            'progresso': [p.to_dict() for p in progress_list],
+            'total_passos': len(progress_list)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/prints/<nome_arquivo>')
+def servir_print(nome_arquivo):
+    pasta_prints = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prints_personalizados')
+    return send_from_directory(pasta_prints, nome_arquivo)
+
+@app.route('/static/prints/<nome_arquivo>')
+def servir_print_static(nome_arquivo):
+    pasta_prints = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prints_personalizados')
+    return send_from_directory(pasta_prints, nome_arquivo)
 
 def _executar_scraping(job_id: int, bairro: str, nicho: str):
-    """
-    Executa o scraping EM PRIMEIRO PLANO para o usuário ver.
-    Mostra progresso real no banco de dados.
-    """
     session = get_session()
     try:
         job = session.query(ScrapingJob).get(job_id)
         if not job:
             return
         
-        # Atualiza status do job
         job.status = 'executando'
         session.commit()
         
-        # Importa e executa o scraper
         from backend.scrapers.maps_scraper import GoogleMapsScraper
         
-        scraper = GoogleMapsScraper(max_leads=8)  # Limite de 8
+        scraper = GoogleMapsScraper(max_leads=8)
         resultado = scraper.buscar_leads(bairro=bairro, nicho=nicho)
         
         leads_brutos = resultado['leads']
         progresso = resultado['progresso']
         
-        # Salva progresso no banco
         for msg in progresso:
             progress_entry = ScrapingProgress(
                 job_id=job_id,
@@ -453,7 +416,6 @@ def _executar_scraping(job_id: int, bairro: str, nicho: str):
             session.add(progress_entry)
         session.commit()
         
-        # Processa e salva leads (evitando duplicados)
         leads_processados = 0
         leads_novos = 0
         leads_existentes = 0
@@ -465,13 +427,11 @@ def _executar_scraping(job_id: int, bairro: str, nicho: str):
             if not telefone:
                 continue
             
-            # Verifica duplicata pelo telefone
             existente = session.query(Lead).filter(
                 Lead.telefone == telefone
             ).first()
             
             if existente:
-                # Atualiza informações
                 existente.empresa_original = lead_processado['empresa_original']
                 existente.bairro = lead_processado['bairro']
                 existente.link_landing = lead_processado['link_landing']
@@ -499,12 +459,11 @@ def _executar_scraping(job_id: int, bairro: str, nicho: str):
             
             leads_processados += 1
         
-        # Atualiza o job
         job.status = 'concluido'
         job.leads_encontrados = leads_processados
         job.leads_novos = leads_novos
         job.data_fim = datetime.now()
-        job.log = f"OK: {leads_novos} novos, {leads_existentes} atualizados, {len(progresso)} passos"
+        job.log = f"OK: {leads_novos} novos, {leads_existentes} atualizados"
         
         session.commit()
         
@@ -517,38 +476,37 @@ def _executar_scraping(job_id: int, bairro: str, nicho: str):
                 job.log = str(e)[:500]
                 job.data_fim = datetime.now()
                 session.commit()
-        except Exception:
+        except:
             pass
     finally:
         session.close()
 
-@app.route('/api/scraping/progresso/<int:job_id>')
-def progresso_scraping(job_id):
-    """Retorna o progresso detalhado de um job de scraping"""
-    session = get_session()
+
+@app.route('/api/leads/copiar-print-base64', methods=['POST'])
+def copiar_print_base64():
+    """Retorna a imagem em base64 para copiar para clipboard"""
+    import base64
+    
+    data = request.get_json()
+    caminho = data.get('caminho', '')
+    
+    if not caminho or not os.path.exists(caminho):
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+    
     try:
-        progress_list = session.query(ScrapingProgress).filter(
-            ScrapingProgress.job_id == job_id
-        ).order_by(ScrapingProgress.timestamp.asc()).all()
+        with open(caminho, 'rb') as f:
+            imagem_bytes = f.read()
+        
+        imagem_base64 = base64.b64encode(imagem_bytes).decode('utf-8')
         
         return jsonify({
-            'job_id': job_id,
-            'progresso': [p.to_dict() for p in progress_list],
-            'total_passos': len(progress_list)
+            'sucesso': True,
+            'imagem_base64': imagem_base64,
+            'nome_arquivo': os.path.basename(caminho),
+            'tamanho': len(imagem_bytes)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        session.close() 
-
-
-@app.route('/static/prints/<nome_arquivo>')
-def servir_print(nome_arquivo):
-    """Serve os arquivos de print gerados"""
-    import flask
-    pasta_prints = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prints_personalizados')
-    return flask.send_from_directory(pasta_prints, nome_arquivo)
-
 
 if __name__ == '__main__':
     print("🚀 Iniciando servidor do Painel de Prospecção...")
